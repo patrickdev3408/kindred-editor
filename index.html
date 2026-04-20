@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 
 <html lang="en">
 <head>
@@ -180,6 +180,14 @@ const TRIGGERS=['Always','On_Crit','On_Kill','Chance'];
 const EFF_TARGETS=['Enemy','Self','Allies','All'];
 const WEAKEN_STATS=['','Attack','Defense','Special_Attack','Special_Defense','Speed','Dodge','Crit_Chance'];
 const TRAP_TICKS=['One_shot','Continuous'];
+const OPTS_RECHARGE=[0, 1, 2, 3, 4, 5];
+const OPTS_RELEASE=[1, 2, 3, 4, 5];
+const OPTS_DIST=[0, 1, 2, 3, 4, 5, 6, 7, 8];
+const OPTS_DUR=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const OPTS_CHANCE=[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+const OPTS_SYN_RANGE=[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0];
+const OPTS_SYN_MOD=[0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25, 4.5, 4.75, 5.0];
+const OPTS_CDR=[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
 const SYN_STATS=['','attack','defense','special attack','special defense','regen','speed','dodge','health','crit','critb'];
 const MOVE_TARGETS=['Self','Ally','Enemy','Any'];
 
@@ -330,9 +338,9 @@ function createChar(){
   const id=pfx+String(n).padStart(3,'0');
   chars.push({id,name:'',tag:'',tier,cls:'Warrior',type1:'',type1pct:100,type2:'',
     hp:500,regen:10,atk:100,def_:100,spatk:100,spdef:100,spd:5,dodge:10,crit:20,critb:2,
-    s1t:'',s1r:'',s1s:'',s1m:'',s2t:'',s2r:'',s2s:'',s2m:'',
-    s3t:'',s3r:'',s3s:'',s3m:'',s4t:'',s4r:'',s4s:'',s4m:'',
-    scls:'',sclsr:'',sclsq:'',sclscdr:'',sclsstat:'',sclsmod:'',stdAtk:''});
+    s1t:'',s1r:0,s1s:'',s1m:0,s2t:'',s2r:0,s2s:'',s2m:0,
+    s3t:'',s3r:0,s3s:'',s3m:0,s4t:'',s4r:0,s4s:'',s4m:0,
+    scls:'',sclsr:0,sclsq:0,sclscdr:0,sclsstat:'',sclsmod:0,stdAtk:''});
   saveToStorage();closeModal('add');showDetail(id);
 }
 
@@ -409,15 +417,15 @@ function mkSel(label,options,value,onChange,style){
 }
 
 function mkStepper(label,value,onChange,min,max,step){
-  const v=safeNum(value,min);
+  let v=safeNum(value,min);
   const wrap=el('div');
   if(label)wrap.appendChild(mkLabel(label));
   const row=el('div',{class:'stepper'});
   const minus=el('button',{class:'stepper-btn'},'-');
   const valEl=el('div',{class:'stepper-val'},fmtVal(v,step));
   const plus=el('button',{class:'stepper-btn'},'+');
-  minus.onclick=()=>{const nv=parseFloat(Math.max(min,v-step).toFixed(4));onChange(nv);};
-  plus.onclick=()=>{const nv=parseFloat(Math.min(max,v+step).toFixed(4));onChange(nv);};
+  minus.onclick=()=>{v=parseFloat(Math.max(min,v-step).toFixed(4));onChange(v);valEl.textContent=fmtVal(v,step);};
+  plus.onclick=()=>{v=parseFloat(Math.min(max,v+step).toFixed(4));onChange(v);valEl.textContent=fmtVal(v,step);};
   row.appendChild(minus);row.appendChild(valEl);row.appendChild(plus);
   wrap.appendChild(row);
   return wrap;
@@ -427,15 +435,16 @@ function mkSlider(label,value,onChange,min,max,step){
   const v=safeNum(value,min);
   const fmt=fmtVal(v,step);
   const wrap=el('div');
+  let valEl=null;
   if(label){
     const row=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'3px'}});
     row.appendChild(mkLabel(label));
-    const valEl=el('span',{style:{fontSize:'12px',color:'#d4af37',fontWeight:'700'}},fmt);
+    valEl=el('span',{style:{fontSize:'12px',color:'#d4af37',fontWeight:'700'}},fmt);
     row.appendChild(valEl);
     wrap.appendChild(row);
   }
   const inp=el('input',{type:'range',min,max,step,value:v});
-  inp.oninput=()=>onChange(parseFloat(inp.value));
+  inp.oninput=()=>{const nv=parseFloat(inp.value);onChange(nv);if(valEl)valEl.textContent=fmtVal(nv,step);};
   wrap.appendChild(inp);
   return wrap;
 }
@@ -724,8 +733,8 @@ function renderActions(char,content){
       card.appendChild(mkGrid([
         mkSel('Dmg Type',DMG_TYPES,g('dmgType','None'),v=>s('dmgType',v)),
         mkSel('AoE Pattern',AOE_PATTERNS,pattern,v=>{s('aoePattern',v);renderDetail();}),
-        mkStepper('Recharge Steps',g('recharge',1),v=>s('recharge',v),0,5,1),
-        mkStepper('Release Steps',g('release',1),v=>s('release',v),1,5,1),
+        mkNumSel('Recharge Steps',g('recharge',1),OPTS_RECHARGE,v=>s('recharge',v)),
+        mkNumSel('Release Steps',g('release',1),OPTS_RELEASE,v=>s('release',v)),
       ],2));
 
       // Trap tick
@@ -740,7 +749,7 @@ function renderActions(char,content){
       moveCard.appendChild(el('div',{class:'sec-title'},'Movement'));
       moveCard.appendChild(mkGrid([
         mkSel('Type',MOVE_TYPES,g('moveType','None'),v=>s('moveType',v)),
-        mkStepper('Distance',g('moveDist',0),v=>s('moveDist',v),0,8,1),
+        mkNumSel('Distance',g('moveDist',0),OPTS_DIST,v=>s('moveDist',v)),
         mkSel('Target',MOVE_TARGETS,g('moveTarget','Self'),v=>s('moveTarget',v)),
       ],2));
       card.appendChild(moveCard);
@@ -755,11 +764,11 @@ function renderActions(char,content){
         effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
         effCard.appendChild(mkSlider('Magnitude',g(ep+'mag',0),v=>s(ep+'mag',v),-50,150,1));
         effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
-        effCard.appendChild(mkStepper('Duration (steps)',g(ep+'dur',0),v=>s(ep+'dur',v),0,10,1));
+        effCard.appendChild(mkNumSel('Duration (steps)',g(ep+'dur',0),OPTS_DUR,v=>s(ep+'dur',v)));
         effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
         effCard.appendChild(mkGrid([
           mkSel('Trigger',TRIGGERS,trigger,v=>{s(ep+'trig',v);renderDetail();}),
-          mkStepper('Chance %',g(ep+'chance',100),v=>s(ep+'chance',v),0,100,5),
+          mkNumSel('Chance %',g(ep+'chance',100),OPTS_CHANCE,v=>s(ep+'chance',v)),
         ],2));
         effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
         effCard.appendChild(mkSel('Target',EFF_TARGETS,g(ep+'target','Enemy'),v=>s(ep+'target',v)));
@@ -781,9 +790,9 @@ function renderSynergies(char,content){
     card.appendChild(el('div',{class:'sec-title'},'Synergy '+n));
     card.appendChild(mkGrid([
       mkSel('Type',['',...TYPES],char[tk]||'',v=>updateChar(tk,v)),
-      mkStepper('Range',safeNum(char[rk]),v=>updateChar(rk,v),0,6,0.5),
+      mkNumSel('Range',safeNum(char[rk]),OPTS_SYN_RANGE,v=>updateChar(rk,v)),
       mkSel('Stat',SYN_STATS,char[sk]||'',v=>updateChar(sk,v)),
-      mkStepper('Modifier',safeNum(char[mk]),v=>updateChar(mk,v),0,5,0.25),
+      mkNumSel('Modifier',safeNum(char[mk]),OPTS_SYN_MOD,v=>updateChar(mk,v)),
     ],2));
     content.appendChild(card);
   });
@@ -792,11 +801,11 @@ function renderSynergies(char,content){
   clsCard.appendChild(el('div',{class:'sec-title',style:{color:'#5a8a5a'}},'Class Synergy'));
   clsCard.appendChild(mkGrid([
     mkSel('Class',['',...CLASSES],char.scls||'',v=>updateChar('scls',v)),
-    mkStepper('Range',safeNum(char.sclsr),v=>updateChar('sclsr',v),0,6,0.5),
-    mkStepper('Qty Required',safeNum(char.sclsq),v=>updateChar('sclsq',v),0,10,1),
-    mkStepper('CDR',safeNum(char.sclscdr),v=>updateChar('sclscdr',v),0,5,0.5),
+    mkNumSel('Range',safeNum(char.sclsr),OPTS_SYN_RANGE,v=>updateChar('sclsr',v)),
+    mkNumSel('Qty Required',safeNum(char.sclsq),OPTS_DIST,v=>updateChar('sclsq',v)),
+    mkNumSel('CDR',safeNum(char.sclscdr),OPTS_CDR,v=>updateChar('sclscdr',v)),
     mkSel('Stat',SYN_STATS,char.sclsstat||'',v=>updateChar('sclsstat',v)),
-    mkStepper('Modifier',safeNum(char.sclsmod),v=>updateChar('sclsmod',v),0,5,0.25),
+    mkNumSel('Modifier',safeNum(char.sclsmod),OPTS_SYN_MOD,v=>updateChar('sclsmod',v)),
   ],2));
   content.appendChild(clsCard);
 }
