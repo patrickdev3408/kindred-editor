@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 
 <html lang="en">
 <head>
@@ -514,6 +514,16 @@ function mkActBar(label,value,min,max,step,color,onChange){
   track.onclick=e=>setFromX(e.clientX);
   track.ontouchstart=e=>{e.preventDefault();setFromX(e.touches[0].clientX);};
   wrap.appendChild(track);
+  return wrap;
+}
+
+
+function mkNumSel(label, value, options, onChange, style) {
+  const wrap = el('div');
+  if(style) Object.assign(wrap.style, style);
+  if(label) wrap.appendChild(mkLabel(label));
+  const opts = options.map(o => ({value: typeof o==='object'?o.value:o, label: typeof o==='object'?o.label:String(o)}));
+  wrap.appendChild(mkSelect(opts, value, v => onChange(parseFloat(v))));
   return wrap;
 }
 
