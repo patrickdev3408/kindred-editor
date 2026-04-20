@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Kindred Wars — Data Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:#09091a;color:#e0e0f0;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+input,select,textarea,button{font-family:inherit;}
+button{cursor:pointer;}
+
+/* Layout */
+#header{background:#0c0c1e;border-bottom:1px solid #181836;padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;position:sticky;top:0;z-index:10;}
+#content{flex:1;overflow-y:auto;padding:12px;}
+
+/* Buttons */
+.btn{border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;border:1px solid;}
+.btn-gold{background:rgba(212,175,55,0.1);border-color:#d4af3744;color:#d4af37;}
+.btn-blue{background:#0c1a2a;border-color:#1e3a5a;color:#70a8d0;}
+.btn-green{background:#0c1a0c;border-color:#1e3a1e;color:#70b870;}
+.btn-plain{background:#0d0d1a;border-color:#252540;color:#5a5a8a;}
+.btn-back{background:none;border:none;color:#d4af37;font-size:22px;padding:0 8px 0 0;line-height:1;}
+.btn-wide{width:100%;padding:11px;font-size:13px;font-weight:700;border-radius:8px;border:1px solid;}
+
+/* Cards */
+.card{background:#111122;border:1px solid #1a1a38;border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.card-green{border-color:#1e2e1e;}
+.sec-title{font-size:10px;color:#5a5a8a;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:8px;}
+
+/* Form controls */
+label.lbl{font-size:10px;color:#5a5a8a;text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:3px;display:block;}
+input[type=text],input[type=number],select{background:#0d0d1a;border:1px solid #252540;border-radius:5px;color:#e0e0f0;padding:6px 8px;font-size:13px;outline:none;width:100%;}
+select{cursor:pointer;}
+input[type=range]{width:100%;accent-color:#d4af37;cursor:pointer;height:22px;}
+
+/* Grid helpers */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.span2{grid-column:1/-1;}
+
+/* Char card */
+.char-card{background:#0f0f20;border:1px solid #181834;border-radius:8px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:5px;}
+.char-card:active{background:#161630;}
+.char-id{font-family:monospace;font-size:10px;color:#2a2a4a;width:34px;flex-shrink:0;}
+.char-name{font-size:13px;color:#d0d0e8;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.char-cls{font-size:11px;color:#33334a;margin-top:1px;}
+.tier-badge{font-size:9px;border-radius:4px;padding:2px 6px;flex-shrink:0;font-weight:800;}
+
+/* Stat bar */
+.stat-bar-wrap{margin-bottom:10px;}
+.stat-bar-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;}
+.stat-bar-lbl{font-size:10px;color:#5a5a8a;font-weight:700;text-transform:uppercase;letter-spacing:.07em;}
+.stat-bar-vals{display:flex;gap:8px;align-items:baseline;}
+.stat-bar-cmp{font-size:10px;color:#6080a0;}
+.stat-bar-avg{font-size:10px;color:#5a6a5a;}
+.stat-bar-val{font-size:13px;font-weight:700;min-width:36px;text-align:right;}
+.stat-bar-track{height:26px;background:#0d0d1a;border:1px solid #1e1e36;border-radius:5px;position:relative;cursor:pointer;overflow:hidden;touch-action:manipulation;}
+.stat-bar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width 0.08s;}
+.stat-bar-marker{position:absolute;top:0;bottom:0;width:2px;transform:translateX(-50%);}
+
+/* Stepper */
+.stepper{display:flex;align-items:center;background:#0d0d1a;border:1px solid #252540;border-radius:5px;overflow:hidden;}
+.stepper-btn{background:#161630;border:none;color:#9090c0;font-size:20px;width:42px;height:36px;cursor:pointer;flex-shrink:0;line-height:1;display:flex;align-items:center;justify-content:center;}
+.stepper-val{flex:1;text-align:center;color:#d4af37;font-size:13px;font-weight:700;}
+
+/* Sub tabs */
+.subtabs{display:flex;background:#0c0c1e;border-radius:8px;padding:3px;margin-bottom:8px;gap:3px;}
+.subtab{flex:1;padding:7px 4px;border-radius:6px;border:none;font-size:12px;font-weight:700;cursor:pointer;text-transform:capitalize;}
+.subtab.active{background:#1a1a38;color:#d4af37;}
+.subtab.inactive{background:transparent;color:#33334a;}
+
+/* Tier filter */
+.tier-filters{display:flex;gap:5px;margin-bottom:10px;}
+.tier-btn{flex:1;padding:5px 2px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;display:flex;flex-direction:column;padding:16px;}
+.modal-box{background:#111122;border:1px solid #2a2a4a;border-radius:12px;display:flex;flex-direction:column;flex:1;overflow:hidden;max-height:90vh;}
+.modal-header{padding:14px 16px;border-bottom:1px solid #1a1a38;display:flex;justify-content:space-between;align-items:center;}
+.modal-title{font-size:13px;font-weight:800;}
+.modal-sub{font-size:10px;color:#44446a;margin-top:2px;}
+.modal-body{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.modal-footer{padding:12px;border-top:1px solid #1a1a38;display:flex;gap:8px;}
+
+/* Action collapse */
+.action-header{display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.action-chevron{color:#33334a;font-size:16px;}
+
+/* Search */
+#search-input{flex:1;background:#0c0c1e;border:1px solid #181836;border-radius:8px;color:#d0d0e8;padding:8px 12px;font-size:13px;outline:none;}
+
+textarea{background:#0a0a18;color:#c0c0e0;font-size:11px;font-family:monospace;border:none;outline:none;padding:12px;resize:none;line-height:1.4;flex:1;}
+</style>
+
+</head>
+<body>
+
+<div id="header">
+  <button class="btn-back" id="btn-back" style="display:none">←</button>
+  <div id="header-title" style="flex:1">
+    <div style="font-size:14px;font-weight:800;color:#d4af37;letter-spacing:.05em">KINDRED WARS</div>
+    <div style="font-size:9px;color:#22224a;letter-spacing:.12em">DATA EDITOR</div>
+  </div>
+  <button class="btn btn-gold" id="btn-new" style="display:none">+ New</button>
+  <button class="btn btn-blue" id="btn-save">Save</button>
+  <button class="btn btn-green" id="btn-csv">CSV</button>
+</div>
+
+<div id="content"></div>
+
+<!-- Save Modal -->
+
+<div class="modal-bg" id="modal-save" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><div class="modal-title" style="color:#70a8d0">Save Data</div><div class="modal-sub">Copy this text and paste it into Notes or anywhere safe</div></div>
+      <button class="btn-plain btn" onclick="closeModal('save')">✕</button>
+    </div>
+    <textarea id="save-textarea" readonly style="flex:1;min-height:200px"></textarea>
+    <div style="padding:12px;border-top:1px solid #1a1a38">
+      <button class="btn-wide" id="btn-copy" style="background:rgba(212,175,55,0.12);border-color:#d4af3766;color:#d4af37" onclick="copyAll()">Copy All Text</button>
+    </div>
+  </div>
+</div>
+
+<!-- Load Modal -->
+
+<div class="modal-bg" id="modal-load" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><div class="modal-title" style="color:#70a8d0">Load Save</div><div class="modal-sub">Paste your previously saved text below</div></div>
+      <button class="btn-plain btn" onclick="closeModal('load')">✕</button>
+    </div>
+    <div style="padding:12px;flex:1;display:flex;flex-direction:column;gap:10px">
+      <textarea id="load-textarea" placeholder="Paste save data here..." style="flex:1;min-height:200px;border:1px solid #252540;border-radius:6px"></textarea>
+      <div id="load-msg" style="font-size:11px;color:#c06060;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-wide" id="btn-load-confirm" style="flex:1;background:rgba(100,160,220,0.12);border-color:#1e4a7a;color:#70a8d0" onclick="loadData()">Load Data</button>
+      <button class="btn btn-plain" onclick="closeModal('load')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Character Modal -->
+
+<div class="modal-bg" id="modal-add" style="display:none;align-items:center;justify-content:center">
+  <div style="background:#111122;border:1px solid #2a2a4a;border-radius:12px;padding:24px;width:100%;max-width:300px">
+    <div style="font-size:14px;color:#d4af37;font-weight:800;margin-bottom:16px">Add Character</div>
+    <div style="margin-bottom:16px">
+      <label class="lbl">Tier</label>
+      <select id="new-tier"><option>Hero</option><option>Lieutenant</option><option>Minion</option></select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-wide" style="flex:1;background:rgba(212,175,55,0.12);border-color:#d4af3766;color:#d4af37" onclick="createChar()">Create</button>
+      <button class="btn btn-plain" onclick="closeModal('add')">✕</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const SCHEMA=["id", "name", "tag", "tier", "cls", "type1", "type1pct", "type2", "hp", "regen", "atk", "def_", "spatk", "spdef", "spd", "dodge", "crit", "critb", "s1t", "s1r", "s1s", "s1m", "s2t", "s2r", "s2s", "s2m", "s3t", "s3r", "s3s", "s3m", "s4t", "s4r", "s4s", "s4m", "scls", "sclsr", "sclsq", "sclscdr", "sclsstat", "sclsmod", "stdAtk"];
+const ROWS_DEFAULT=[["H001","Skyrend","The Bolt","Hero","Stormcaller","Dragon",85,"Arcane",600,10,146,91,77,75,6,10,20,2,"Dragon","","attack","1.5","Arthropod","4.0","health","0.75","Goblin","","defense","1.25","Alien","","regen","2.5","Warden","1.0","2.0","1.0","attack","2.0","Claw"],["H002","Wayland the Smith","","Hero","Catalyst","Metal",55,"Human",420,10,127,160,111,119,5,14,19,2.91,"","","","","","","","","","","","","","","","","","","","","","","Iron Strike"],["H003","Lilith","","Hero","Warlock","Evil",75,"Human",620,10,155,100,101,101,8,10,22,2.31,"","","","","","","","","","","","","","","","","","","","","","","Wicked Slash"],["H004","Fafnir","","Hero","Reaver","Elf",90,"Dragon",492,10,121,100,118,98,6,9,21,2.27,"","","","","","","","","","","","","","","","","","","","","","","Swift Strike"],["H005","Rianduil","King of the Blood Elves","Hero","Ranger","Elf",100,"Alien",425,10,105,100,95,66,5,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Slice"],["H006","Optimus Prime","","Hero","Vanguard","Tech",100,"Alien",554,10,136,100,146,81,5,12,15,2.68,"","","","","","","","","","","","","","","","","","","","","","","Mechanical Jab"],["H007","Pyraxis","","Hero","Terror","Dragon",80,"Flying",595,10,147,100,96,93,6,16,22,2.14,"","","","","","","","","","","","","","","","","","","","","","","Claw Rake"],["H008","Archimedes","","Hero","Wizard","Human",65,"Tech",692,10,123,100,115,105,5,10,15,1.95,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H009","Ashvault","","Hero","Warden","Primordial",55,"Earth",817,10,133,100,110,98,4,10,19,1.98,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H010","World Anvil","","Hero","Sentinel","Primordial",60,"Metal",587,10,127,100,113,93,3,8,20,2.75,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H011","Medusa","","Hero","Shadowdancer","Human",65,"Reptile",443,10,131,100,117,109,5,9,20,2.49,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H012","Odin","","Hero","Paladin","God",100,"Alien",686,10,101,100,117,104,7,8,15,1.83,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H013","Orionth","","Hero","Dawnblade","Dragon",80,"Holy",631,10,122,100,94,112,7,12,18,1.71,"","","","","","","","","","","","","","","","","","","","","","","Claw Rake"],["H014","Thyrnn","","Hero","Berserker","Dragon",80,"Giant",890,10,124,100,116,107,4,7,17,2.14,"","","","","","","","","","","","","","","","","","","","","","","Claw Rake"],["H015","Perseus","","Hero","Knight","Human",80,"God",768,10,102,100,124,123,7,12,23,2.24,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H016","Fenrir","","Hero","Barbarian","Beast",90,"Void",584,10,107,100,117,89,6,13,25,2.62,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["H017","Cyclops","","Hero","Terror","Beast",80,"Orc",439,10,124,100,107,94,7,10,18,1.81,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["H018","Poseidon","","Hero","Shaman","God",100,"Alien",533,10,95,100,164,104,7,9,17,1.95,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H019","Jotnar","","Hero","Vanguard","Earth",80,"Giant",765,10,145,100,103,106,4,8,25,2.43,"","","","","","","","","","","","","","","","","","","","","","","Stone Fist"],["H020","Achilles","","Hero","Warrior","Human",75,"God",524,10,118,100,154,103,5,10,17,1.88,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H021","Dracula","","Hero","Necromancer","Blood",50,"Human",633,14,122,88,91,102,5,11,26,2.56,"","","","","","","","","","","","","","","","","","","","","","","Blood Slash"],["H022","Blightroot Colossus","","Hero","Warden","Blight",50,"Plant",496,12,134,99,136,85,3,8,23,2.14,"","","","","","","","","","","","","","","","","","","","","","","Rotting Claw"],["H023","Anunnaki","Sumarian Eye","Hero","Spiritcaller","Alien",95,"Undead",400,10,50,50,130,125,3,10,20,1.5,"","","","","","","","","","","","","","","","","","","","","","","Firebolt"],["H024","Ymir","","Hero","Berserker","Giant",55,"Orc",709,18,168,120,90,99,3,6,24,1.82,"","","","","","","","","","","","","","","","","","","","","","","Heavy Slam"],["H025","V\u00f6lundr","","Hero","Catalyst","Dwarf",60,"Metal",727,10,109,132,92,90,4,11,15,1.92,"","","","","","","","","","","","","","","","","","","","","","","Hammer Blow"],["H026","Titania","","Hero","Druid","Elf",75,"Plant",463,11,101,87,157,89,4,16,18,2.93,"","","","","","","","","","","","","","","","","","","","","","","Swift Strike"],["H027","Leonidas","Shield of Sparta","Hero","Sentinel","Human",95,"Metal",425,10,125,95,50,75,6,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H028","Manbearpig","IDK","Hero","Terror","Human",50,"Beast",500,10,150,75,75,50,5,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H029","Ao","Turtle God","Hero","Warden","Reptile",80,"Sea",639,11,126,114,131,101,5,13,25,2.73,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["H030","Aelthyr","","Hero","Wizard","Primordial",50,"Elf",785,9,115,95,110,97,8,15,24,1.52,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H031","Ahriman","","Hero","Warlock","Evil",60,"Holy",641,8,116,129,110,111,7,15,23,1.83,"","","","","","","","","","","","","","","","","","","","","","","Wicked Slash"],["H032","Lucifer","","Hero","Reaver","Evil",90,"",643,10,134,91,115,109,7,11,20,2.26,"","","","","","","","","","","","","","","","","","","","","","","Wicked Slash"],["H033","Kallikantzaros","","Hero","Skirmisher","Goblin",85,"Blight",391,16,132,86,136,107,9,14,18,2.71,"","","","","","","","","","","","","","","","","","","","","","","Quick Stab"],["H034","Loki","","Hero","Trickster","God",100,"Alien",751,11,129,93,123,114,7,9,17,2.82,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H035","Loch Ness Monster","","Hero","Druid","Sea",70,"Giant",554,9,141,92,125,107,5,12,20,2.29,"","","","","","","","","","","","","","","","","","","","","","","Tidal Slam"],["H036","Wood Elf King","","Hero","Ranger","Elf",100,"Alien",632,10,120,91,142,106,4,17,19,1.75,"","","","","","","","","","","","","","","","","","","","","","","Swift Strike"],["H037","Xo","Titan","Hero","Vanguard","Giant",70,"God",512,13,143,117,127,88,6,7,19,1.96,"","","","","","","","","","","","","","","","","","","","","","","Heavy Slam"],["H038","Osiris","","Hero","Spiritcaller","God",100,"Alien",418,10,111,95,145,125,8,15,23,2.97,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H039","Michael The Archangel","","Hero","Templar","Holy",100,"Alien",668,12,116,122,104,95,6,13,23,2.62,"","","","","","","","","","","","","","","","","","","","","","","Sacred Strike"],["H040","Thamir Gixx","The Silent Blade","Hero","Assassin","Smallkin",60,"God",561,14,104,111,111,90,8,17,15,2.11,"","","","","","","","","","","","","","","","","","","","","","","Nimble Jab"],["H041","Simba","The Lion King","Hero","Hunter","Beast",100,"Alien",429,12,103,114,108,89,8,11,21,2.65,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["H042","Thyrus","","Hero","Skirmisher","Reptile",80,"Flying",563,10,134,97,118,78,6,18,21,2.3,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["H043","Euryale","","Hero","Shadowdancer","Human",65,"Reptile",619,10,117,126,123,77,5,14,21,2.36,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H044","Talos","","Hero","Sentinel","Arthropod",50,"Metal",395,9,110,107,102,89,6,15,19,2.31,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["H045","Nisse","","Hero","Trickster","Smallkin",80,"Earth",409,14,121,95,131,87,8,16,21,2.29,"","","","","","","","","","","","","","","","","","","","","","","Nimble Jab"],["H046","Bigfoot","","Hero","Barbarian","Human",50,"Beast",582,14,141,120,109,79,6,12,25,2.23,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H047","Set","","Hero","Warlock","God",100,"Alien",576,8,101,100,166,89,7,16,23,2.34,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H048","Stheno","","Hero","Assassin","Human",65,"Reptile",571,12,100,95,124,96,8,8,21,2.96,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H049","Sporecaller","Spore Scout","Hero","Druid","Blight",60,"Plant",450,10,75,60,125,90,4,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Rotting Claw"],["H050","Boudica","Blood of the Iceni","Hero","Warrior","Human",60,"Blood",489,12,143,114,121,86,7,16,20,2.51,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H051","Bugul Noz","","Hero","Assassin","Goblin",70,"Void",315,13,110,90,148,84,9,12,15,2.37,"","","","","","","","","","","","","","","","","","","","","","","Quick Stab"],["H052","Yeti","","Hero","Barbarian","Beast",60,"Human",423,10,131,94,109,106,6,13,21,1.61,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["H053","Zeus","","Hero","Stormcaller","God",100,"Alien",680,8,96,91,136,118,7,8,25,2.24,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H054","The Crimson Oracle","","Hero","Catalyst","Blood",50,"Psychic",427,10,112,87,135,110,7,8,17,2.52,"","","","","","","","","","","","","","","","","","","","","","","Blood Slash"],["H055","Imhotep","","Hero","Priest","Human",80,"Holy",460,14,117,132,102,124,6,9,17,1.89,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H056","Megaladon","","Hero","Terror","Sea",95,"Giant",624,10,135,113,109,90,6,10,16,2.21,"","","","","","","","","","","","","","","","","","","","","","","Tidal Slam"],["H057","Ginnungagap","","Hero","Wizard","Void",90,"Arcane",489,13,116,105,156,109,8,16,25,2.46,"","","","","","","","","","","","","","","","","","","","","","","Null Touch"],["H058","F5","","Hero","Terror","Giant",50,"Sea",583,11,135,98,102,105,5,11,24,2.81,"","","","","","","","","","","","","","","","","","","","","","","Heavy Slam"],["H059","Agni","","Hero","Mage","Arcane",80,"Elf",497,12,127,89,108,96,4,16,24,1.54,"","","","","","","","","","","","","","","","","","","","","","","Arcane Bolt"],["H060","Ishara","","Hero","Reaver","Arthropod",60,"Blight",546,9,116,91,117,98,4,15,15,2.34,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["H061","Nephilim","","Hero","Herald","Alien",100,"Alien",609,8,127,94,154,75,5,15,17,2.18,"","","","","","","","","","","","","","","","","","","","","","","Psionic Jab"],["H062","Grim Reaper","","Hero","Necromancer","Evil",50,"Holy",470,13,128,105,122,116,5,16,23,1.76,"","","","","","","","","","","","","","","","","","","","","","","Wicked Slash"],["H063","Orefather","","Hero","Warden","Primordial",55,"Metal",640,13,105,120,114,93,6,14,15,2.37,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H064","Elder Star","","Hero","Wizard","Primordial",75,"Arcane",502,9,134,121,155,78,8,13,19,2.28,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H065","Gorellik","(The Loner)","Hero","Hunter","Beast",80,"Human",533,11,99,90,103,81,8,11,23,1.56,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["H066","Andvari","","Hero","Reaver","Dwarf",60,"Evil",458,13,136,114,119,109,4,16,26,2.85,"","","","","","","","","","","","","","","","","","","","","","","Hammer Blow"],["H067","Hephaestus","","Hero","Catalyst","Metal",90,"God",462,11,110,106,124,115,4,8,18,2.68,"","","","","","","","","","","","","","","","","","","","","","","Iron Strike"],["H068","Noctyrr","","Hero","Warlock","Dragon",80,"Void",604,12,122,95,111,106,5,13,24,2.3,"","","","","","","","","","","","","","","","","","","","","","","Claw Rake"],["H069","Sun Tzu","","Hero","Strategist","Human",75,"Void",371,14,114,116,106,92,6,15,20,2.14,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H070","Zyrr","","Hero","Mage","Primordial",65,"Alien",489,13,109,116,131,110,4,11,19,1.87,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H071","Thor","","Hero","Stormcaller","God",100,"Alien",717,12,116,106,115,93,5,12,25,2.69,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H072","Trym","","Hero","Berserker","Giant",75,"Orc",878,16,132,86,135,86,5,11,22,1.73,"","","","","","","","","","","","","","","","","","","","","","","Heavy Slam"],["H073","King Arthur","","Hero","Knight","Human",100,"Alien",640,8,102,92,148,82,7,12,21,1.58,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["H074","Ithrael","","Hero","Spiritcaller","Primordial",50,"Elf",732,8,128,113,133,84,7,15,18,2.01,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H075","Khepri","","Hero","Priest","Arthropod",75,"God",507,12,100,98,149,104,7,12,24,2.4,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["H076","Xythel","","Hero","Wizard","Primordial",65,"Alien",757,10,128,89,147,92,4,13,19,1.56,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H077","Anansi","","Hero","Trickster","Arthropod",80,"Human",645,8,132,122,91,89,4,15,19,2.11,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["H078","The Ettin","","Hero","Barbarian","Orc",65,"Giant",556,13,146,96,116,80,4,8,17,2.64,"","","","","","","","","","","","","","","","","","","","","","","Skull Bash"],["H079","Minotaur","","Hero","Berserker","Beast",60,"Human",392,8,136,118,100,89,6,12,16,1.5,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["H080","Oberon","","Hero","Bard","Fey",60,"Elf",422,10,97,101,121,103,4,14,15,2.34,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["H081","Blightsteel","Broken","Hero","Vanguard","Metal",50,"Blight",750,10,120,126,95,130,2,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Iron Strike"],["H082","Jabir ibn Hayyan","","Hero","Catalyst","Tech",60,"Metal",689,8,123,128,123,118,6,9,15,2.83,"","","","","","","","","","","","","","","","","","","","","","","Mechanical Jab"],["H083","Kappa","","Hero","Skirmisher","Reptile",70,"Human",410,10,103,100,104,100,7,15,25,1.99,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["H084","ThereWolf","The Werewolf King","Hero","Barbarian","Blood",75,"Beast",637,9,176,117,128,92,9,12,26,2.27,"","","","","","","","","","","","","","","","","","","","","","","Blood Slash"],["H085","Kai","The Truth","Hero","Warrior","Dragon",80,"Earth",550,10,110,110,110,110,7,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Claw Rake"],["H086","The Clurichaun","Leprechaun","Hero","Bard","Smallkin",60,"Human",330,8,130,100,128,79,4,10,21,1.8,"","","","","","","","","","","","","","","","","","","","","","","Nimble Jab"],["H087","Urg","The Bugbear","Hero","Berserker","Goblin",60,"Beast",588,8,122,92,108,96,5,15,16,2.24,"","","","","","","","","","","","","","","","","","","","","","","Quick Stab"],["H088","Belial","","Hero","Warlock","Evil",90,"",423,8,140,99,100,101,7,11,20,1.65,"","","","","","","","","","","","","","","","","","","","","","","Wicked Slash"],["H089","Ares","","Hero","Warrior","God",100,"Alien",457,14,95,100,161,114,5,9,22,1.78,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H090","Morbryx","","Hero","Reaver","Dragon",80,"Blight",484,9,147,96,106,98,3,15,15,2.24,"","","","","","","","","","","","","","","","","","","","","","","Claw Rake"],["H091","Leviathan","","Hero","Terror","Giant",85,"Sea",486,10,117,109,111,106,5,7,16,2.41,"","","","","","","","","","","","","","","","","","","","","","","Heavy Slam"],["H092","Tumorbound Behemoth","","Hero","Terror","Mutant",70,"Blight",409,15,121,107,146,86,4,12,15,2.74,"","","","","","","","","","","","","","","","","","","","","","","Warped Claw"],["H093","Blight Hag","","Hero","Necromancer","Blight",55,"Blood",682,16,134,105,129,93,5,8,17,2.57,"","","","","","","","","","","","","","","","","","","","","","","Rotting Claw"],["H094","Orcus","Fat Demon","Hero","Necromancer","Orc",80,"God",800,10,80,95,95,130,3,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Skull Bash"],["H095","Hades","Lord of the Underworld","Hero","Warlock","God",90,"Void",625,10,75,105,140,160,5,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Divine Smite"],["H096","Titanboa","","Hero","Terror","Reptile",75,"Giant",806,11,137,103,125,84,5,8,21,2.97,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["H097","Warg King","","Hero","Druid","Orc",55,"Beast",711,11,154,117,128,97,5,9,17,2,"","","","","","","","","","","","","","","","","","","","","","","Skull Bash"],["H098","The Black Annis Spawn","","Hero","Reaver","Orc",60,"Blight",480,15,111,100,135,105,8,9,19,2.06,"","","","","","","","","","","","","","","","","","","","","","","Skull Bash"],["H099","J\u00f6rmungandr","","Hero","Terror","Sea",55,"Reptile",715,9,103,111,103,109,6,15,25,2.71,"","","","","","","","","","","","","","","","","","","","","","","Tidal Slam"],["H100","The Splitmind Aberrant","","Hero","Catalyst","Mutant",50,"Human",610,12,107,117,118,100,8,15,19,1.99,"","","","","","","","","","","","","","","","","","","","","","","Warped Claw"],["H101","Rootfather","The First Tree","Hero","Druid","Primordial",60,"Plant",780,10,130,140,110,110,2,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Primal Strike"],["H102","Dark Elf King","","Hero","Assassin","Elf",100,"Alien",648,8,131,103,139,81,7,17,19,2.8,"","","","","","","","","","","","","","","","","","","","","","","Swift Strike"],["H103","Oannes","","Hero","Shaman","Sea",60,"Alien",586,9,133,109,148,107,4,10,21,2.1,"","","","","","","","","","","","","","","","","","","","","","","Tidal Slam"],["H104","Arachne","","Hero","Shadowdancer","Arthropod",55,"Elf",381,12,140,97,134,78,5,13,22,2.15,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["H105","Vulcan","","Hero","Spellblade","Metal",65,"Arcane",461,10,108,124,129,114,5,14,20,1.85,"","","","","","","","","","","","","","","","","","","","","","","Iron Strike"],["H106","Cyborg","","Hero","Sentinel","Tech",65,"Human",697,8,135,102,115,87,6,10,20,2.36,"","","","","","","","","","","","","","","","","","","","","","","Mechanical Jab"],["H107","Elmbark","","Hero","Warden","Plant",70,"Giant",871,10,123,111,105,92,6,6,19,2.86,"","","","","","","","","","","","","","","","","","","","","","","Vine Lash"],["H108","Lamiae","","Hero","Necromancer","Blood",55,"Elf",423,13,139,90,140,90,8,9,28,1.96,"","","","","","","","","","","","","","","","","","","","","","","Blood Slash"],["H109","Liard","","Hero","Skirmisher","Reptile",80,"Tech",425,8,148,119,141,106,8,11,21,2.84,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["H110","Pelagor","","Hero","Vanguard","Dragon",80,"Sea",760,12,108,85,134,97,4,14,15,2.22,"","","","","","","","","","","","","","","","","","","","","","","Claw Rake"],["H111","The Wild Huntsman","","Hero","Hunter","Elf",55,"Beast",487,8,124,104,111,95,8,16,23,2.77,"","","","","","","","","","","","","","","","","","","","","","","Swift Strike"],["H112","Zylar","Of the Alien Sea","Hero","Ranger","Alien",75,"Sea",575,10,105,110,125,105,5,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Surf"],["L001","Wild Hunt Rider","","Lieutenant","Skirmisher","Fey",60,"Beast",393,10,83,100,111,62,6,8,13,1.67,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["L002","Plaguebearer","","Lieutenant","Necromancer","Blight",55,"Undead",380,10,90,100,90,62,2,5,12,2.41,"","","","","","","","","","","","","","","","","","","","","","","Rotting Claw"],["L003","Kaliya","","Lieutenant","Reaver","Reptile",100,"Alien",286,10,91,100,94,77,3,8,15,2.46,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["L004","Nikola Tesla","","Lieutenant","Stormcaller","Tech",90,"Human",291,10,88,100,114,76,5,7,18,1.79,"","","","","","","","","","","","","","","","","","","","","","","Mechanical Jab"],["L005","Fairy Knight","","Lieutenant","Knight","Fey",60,"Elf",291,10,90,100,92,83,6,10,16,2.07,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["L006","Griffin","","Lieutenant","Hunter","Beast",100,"Alien",276,10,94,100,115,77,4,9,17,1.8,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["L007","Golem","","Lieutenant","Sentinel","Earth",95,"Giant",447,10,78,100,86,66,5,9,17,1.84,"","","","","","","","","","","","","","","","","","","","","","","Stone Fist"],["L008","Lugh","","Lieutenant","Catalyst","Smallkin",55,"Fey",329,10,82,100,89,68,6,6,18,1.85,"","","","","","","","","","","","","","","","","","","","","","","Nimble Jab"],["L009","Season Queen","","Lieutenant","Druid","Fey",50,"Plant",328,10,98,100,72,65,4,11,14,2.28,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["L010","Mummy","","Lieutenant","Warden","Undead",75,"Earth",308,10,94,100,83,81,6,8,12,2.12,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["L011","Grendel","","Lieutenant","Berserker","Orc",65,"Beast",259,10,99,100,79,81,3,7,14,1.7,"","","","","","","","","","","","","","","","","","","","","","","Skull Bash"],["L012","Garl Glittergold","","Lieutenant","Trickster","Smallkin",100,"Alien",221,10,75,100,96,82,4,6,18,1.73,"","","","","","","","","","","","","","","","","","","","","","","Nimble Jab"],["L013","Hippocampus","","Lieutenant","Skirmisher","Beast",50,"Sea",264,10,92,100,105,81,3,12,10,2.25,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["L014","Steel Rose","","Lieutenant","Sentinel","Tech",50,"Plant",383,5,77,91,97,65,7,9,10,1.78,"","","","","","","","","","","","","","","","","","","","","","","Mechanical Jab"],["L015","Chimera","","Lieutenant","Terror","Beast",100,"Alien",370,6,102,79,74,60,8,5,14,1.63,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["L016","Typhon","","Lieutenant","Terror","Mutant",80,"God",433,6,107,90,92,93,4,11,20,2.41,"","","","","","","","","","","","","","","","","","","","","","","Warped Claw"],["L017","Exorcist","","Lieutenant","Inquisitor","Holy",65,"Arcane",389,10,95,94,88,77,6,13,14,1.76,"","","","","","","","","","","","","","","","","","","","","","","Sacred Strike"],["L018","Redcap Lord","","Lieutenant","Reaver","Fey",55,"Blood",337,7,108,84,82,63,4,9,23,2.06,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["L019","Inquisitor","","Lieutenant","Inquisitor","Holy",65,"Blood",345,6,94,80,87,70,4,13,19,2.37,"","","","","","","","","","","","","","","","","","","","","","","Sacred Strike"],["L020","Void-Eyed Psion","","Lieutenant","Wizard","Psychic",90,"Arcane",372,10,92,65,119,65,7,9,13,1.79,"","","","","","","","","","","","","","","","","","","","","","","Mind Spike"],["L021","Skorpios","","Lieutenant","Terror","Arthropod",95,"Giant",406,7,86,105,96,88,5,8,12,2.29,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["L022","Yan Shi\u2019s Automaton","","Lieutenant","Sentinel","Tech",90,"Human",234,10,73,82,71,87,4,10,20,1.85,"","","","","","","","","","","","","","","","","","","","","","","Mechanical Jab"],["L023","Relic Bearer","","Lieutenant","Paladin","Holy",60,"Metal",284,7,100,126,93,102,2,10,11,2.09,"","","","","","","","","","","","","","","","","","","","","","","Sacred Strike"],["L024","Lazarus of Bethany","","Lieutenant","Cleric","Holy",50,"Undead",276,11,86,110,71,88,6,9,14,1.82,"","","","","","","","","","","","","","","","","","","","","","","Sacred Strike"],["L025","Valkyrie","","Lieutenant","Herald","Human",90,"God",243,10,88,68,112,79,3,5,15,2.1,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["L026","Pheonix","","Lieutenant","Spiritcaller","Flying",60,"Arcane",345,10,80,99,102,81,4,11,14,1.72,"","","","","","","","","","","","","","","","","","","","","","","Talon Strike"],["L027","Paladin","","Lieutenant","Paladin","Holy",50,"Human",386,5,99,83,76,97,3,11,20,2.44,"","","","","","","","","","","","","","","","","","","","","","","Sacred Strike"],["L028","Grendel\u2019s Mother","","Lieutenant","Warlock","Orc",70,"Void",214,7,99,67,108,67,3,14,18,2.25,"","","","","","","","","","","","","","","","","","","","","","","Skull Bash"],["L029","Cerebral Warden","","Lieutenant","Sentinel","Psychic",90,"Elf",232,5,100,84,100,69,7,12,14,1.54,"","","","","","","","","","","","","","","","","","","","","","","Mind Spike"],["L030","Pegasus","","Lieutenant","Skirmisher","Flying",80,"Beast",311,10,76,82,99,63,9,13,19,1.54,"","","","","","","","","","","","","","","","","","","","","","","Talon Strike"],["L031","Hobgoblin","","Lieutenant","Warrior","Goblin",80,"Metal",317,8,89,108,68,92,4,14,11,1.57,"","","","","","","","","","","","","","","","","","","","","","","Quick Stab"],["L032","Siren","","Lieutenant","Bard","Sea",55,"Human",263,10,92,77,65,66,5,6,14,2.5,"","","","","","","","","","","","","","","","","","","","","","","Tidal Slam"],["L033","Basilisk","","Lieutenant","Shadowdancer","Reptile",100,"Alien",303,10,81,76,105,76,4,7,11,2.11,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["L034","Manticore","","Lieutenant","Hunter","Beast",75,"Reptile",356,5,101,76,81,73,3,10,12,2.13,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["L035","Uruk Captain","","Lieutenant","Warrior","Orc",90,"Goblin",329,7,102,85,84,67,6,8,12,1.54,"","","","","","","","","","","","","","","","","","","","","","","Skull Bash"],["L036","Ogre","","Lieutenant","Barbarian","Beast",80,"Orc",248,5,98,96,97,70,6,11,15,1.84,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["L037","Sphinx","","Lieutenant","Strategist","Beast",80,"Human",227,5,103,94,97,84,4,13,18,2.46,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["L038","Serket","","Lieutenant","Priest","Arthropod",90,"God",357,9,89,71,90,75,7,7,16,2.27,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["L039","Martyr","","Lieutenant","Cleric","Holy",55,"Blood",224,8,105,71,80,70,5,8,14,1.72,"","","","","","","","","","","","","","","","","","","","","","","Sacred Strike"],["L040","Kraken","","Lieutenant","Terror","Sea",90,"Beast",379,5,102,97,95,80,8,12,14,2.32,"","","","","","","","","","","","","","","","","","","","","","","Tidal Slam"],["L041","Alchemist","","Lieutenant","Catalyst","Arcane",80,"Human",296,8,97,70,92,74,5,6,14,1.87,"","","","","","","","","","","","","","","","","","","","","","","Arcane Bolt"],["L042","Wraith","","Lieutenant","Shadowdancer","Undead",80,"Void",190,9,73,92,81,84,4,10,18,1.57,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["L043","Nu","","Lieutenant","Spiritcaller","Void",100,"Alien",254,9,93,72,117,86,4,6,16,1.51,"","","","","","","","","","","","","","","","","","","","","","","Null Touch"],["L044","Spinewarp Brute","","Lieutenant","Berserker","Mutant",90,"Beast",291,9,87,74,86,65,7,9,10,2.24,"","","","","","","","","","","","","","","","","","","","","","","Warped Claw"],["L045","Rotshambler","","Lieutenant","Warden","Blight",65,"Plant",361,11,86,68,71,65,6,7,19,1.58,"","","","","","","","","","","","","","","","","","","","","","","Rotting Claw"],["L046","The Hemoforge Knight","","Lieutenant","Spellblade","Blood",60,"Metal",256,8,114,114,79,70,3,12,11,2.27,"","","","","","","","","","","","","","","","","","","","","","","Blood Slash"],["L047","Glamour Witch","","Lieutenant","Illusionist","Fey",65,"Arcane",292,8,98,65,93,93,7,6,18,2.31,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["L048","Wadjet","","Lieutenant","Templar","Reptile",95,"God",345,5,98,98,74,90,7,10,15,1.71,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["L049","Scarab","","Lieutenant","Skirmisher","Arthropod",75,"Beast",333,8,83,73,80,76,8,11,17,2.03,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["L050","Quetzalcoatl","","Lieutenant","Herald","Reptile",70,"Flying",218,8,108,95,101,70,4,11,17,1.52,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["L051","Hydraman","Slither","Lieutenant","Terror","Giant",55,"Reptile",590,10,145,125,75,90,4,10,20,2,"","","","","","","","","","","","","","","","","","","","","","","Heavy Slam"],["L052","Pactbinder","","Lieutenant","Warlock","Fey",55,"Arcane",353,7,102,87,97,75,3,12,10,2.33,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["M001","Miasma Wraith","","Minion","Shadowdancer","Blight",50,"Void",127,4,72,51,47,52,5,4,10,1.68,"","","","","","","","","","","","","","","","","","","","","","","Rotting Claw"],["M002","Green Man","","Minion","Druid","Plant",50,"Orc",201,5,64,49,64,45,6,3,11,1.92,"","","","","","","","","","","","","","","","","","","","","","","Vine Lash"],["M003","Gremlin","","Minion","Trickster","Goblin",65,"Tech",98,5,78,50,54,53,5,5,15,1.75,"","","","","","","","","","","","","","","","","","","","","","","Quick Stab"],["M004","Wight","","Minion","Necromancer","Undead",85,"Void",169,9,71,64,44,64,2,6,14,1.45,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M005","Skeleton Archer","","Minion","Ranger","Undead",90,"Plant",265,6,61,55,55,68,3,6,6,1.38,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M006","Magi","","Minion","Mage","Arcane",80,"Human",155,7,71,61,49,55,4,6,12,1.64,"","","","","","","","","","","","","","","","","","","","","","","Arcane Bolt"],["M007","Myrmidon","","Minion","Warrior","Human",90,"Arthropod",174,4,55,64,73,63,3,5,9,1.33,"","","","","","","","","","","","","","","","","","","","","","","Sword Thrust"],["M008","Grey","","Minion","Wizard","Alien",100,"Alien",102,4,52,53,83,50,3,7,9,1.82,"","","","","","","","","","","","","","","","","","","","","","","Psionic Jab"],["M009","Ghoul","","Minion","Necromancer","Undead",70,"Beast",183,5,79,50,45,61,4,7,12,1.42,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M010","Kobolds","","Minion","Skirmisher","Smallkin",80,"Earth",118,6,55,69,73,41,2,4,6,1.49,"","","","","","","","","","","","","","","","","","","","","","","Nimble Jab"],["M011","Bear","","Minion","Barbarian","Beast",100,"Alien",210,7,82,42,67,68,4,7,15,1.84,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["M012","Tzitzimime","","Minion","Terror","Alien",100,"Alien",128,7,78,47,54,40,4,8,15,1.78,"","","","","","","","","","","","","","","","","","","","","","","Psionic Jab"],["M013","Terracotta Soldier","","Minion","Sentinel","Earth",75,"Human",213,4,51,72,42,56,5,9,15,1.38,"","","","","","","","","","","","","","","","","","","","","","","Stone Fist"],["M014","Skeleton Warrior","","Minion","Warrior","Undead",100,"Alien",227,4,71,55,71,54,3,3,8,1.61,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M015","Imp","","Minion","Trickster","Fey",60,"Smallkin",93,7,65,62,47,53,2,5,5,1.98,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["M016","Wolf","","Minion","Hunter","Beast",100,"Alien",212,7,79,59,50,42,5,7,7,1.96,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["M017","Harpy","","Minion","Skirmisher","Flying",75,"Human",144,6,70,54,71,52,3,5,5,1.77,"","","","","","","","","","","","","","","","","","","","","","","Talon Strike"],["M018","Ghost","","Minion","Spiritcaller","Undead",50,"Void",203,9,70,70,56,52,3,3,15,1.28,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M019","Lion","","Minion","Hunter","Beast",100,"Alien",210,4,84,66,45,64,5,3,14,1.64,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["M020","Human Priest","","Minion","Priest","Holy",70,"Human",175,10,72,100,69,77,3,5,12,1.52,"","","","","","","","","","","","","","","","","","","","","","","Sacred Strike"],["M021","Anaconda","","Minion","Hunter","Reptile",100,"Alien",150,10,89,100,61,42,2,10,11,1.78,"","","","","","","","","","","","","","","","","","","","","","","Fang Strike"],["M022","Centaur","","Minion","Ranger","Beast",60,"Human",180,10,72,100,53,52,5,4,12,1.28,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["M023","Lich","","Minion","Necromancer","Arcane",55,"Undead",7,40,70,106,73,42,5,5,14,1.26,"","","","","","","","","","","","","","","","","","","","","","","Arcane Bolt"],["M024","Zombie","","Minion","Vanguard","Undead",80,"Blight",182,10,61,100,63,51,1,9,7,1.86,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M025","Mini Mummy","","Minion","Warden","Undead",100,"Smallkin",113,10,62,100,67,54,5,4,8,1.34,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M026","Gargoyle","","Minion","Sentinel","Flying",65,"Beast",171,10,60,100,58,56,2,8,5,1.77,"","","","","","","","","","","","","","","","","","","","","","","Talon Strike"],["M027","Will-o-the-Wisp","","Minion","Illusionist","Fey",60,"Void",91,3,68,66,49,47,3,3,10,1.95,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["M028","Changeling","","Minion","Illusionist","Fey",65,"Void",143,4,74,55,72,68,3,9,12,1.99,"","","","","","","","","","","","","","","","","","","","","","","Glamour Strike"],["M029","Spider","","Minion","Skirmisher","Arthropod",100,"Alien",149,4,59,55,51,57,6,6,7,1.97,"","","","","","","","","","","","","","","","","","","","","","","Pincer Snap"],["M030","Hippogriff","","Minion","Skirmisher","Flying",80,"Beast",114,3,56,54,43,41,3,9,6,1.64,"","","","","","","","","","","","","","","","","","","","","","","Talon Strike"],["M031","Redcap","","Minion","Reaver","Goblin",80,"Blood",111,3,65,68,40,65,4,5,8,1.59,"","","","","","","","","","","","","","","","","","","","","","","Quick Stab"],["M032","Spirit","","Minion","Spiritcaller","Undead",50,"Arcane",116,4,69,46,57,52,4,7,12,1.61,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M033","Cheetah","","Minion","Skirmisher","Beast",100,"Alien",166,7,65,61,66,43,6,8,7,1.93,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"],["M034","Draugr","","Minion","Warden","Undead",60,"Earth",212,8,64,60,40,54,4,3,5,1.87,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M035","Carrion Beast","","Minion","Hunter","Blight",75,"Beast",143,3,53,41,60,61,3,3,15,1.44,"","","","","","","","","","","","","","","","","","","","","","","Rotting Claw"],["M036","Revenant","","Minion","Assassin","Undead",75,"Blood",188,8,56,69,53,66,3,7,12,1.37,"","","","","","","","","","","","","","","","","","","","","","","Grave Touch"],["M037","Hell Hound","","Minion","Hunter","Beast",70,"Evil",177,3,63,49,72,44,6,6,6,1.45,"","","","","","","","","","","","","","","","","","","","","","","Savage Bite"]];
+function parseRows(rows){return rows.map(r=>{const c={};SCHEMA.forEach((k,i)=>{c[k]=r[i]??'';});return c;});}
+
+const TYPES=['Alien','Arcane','Arthropod','Beast','Blight','Blood','Dragon','Dwarf','Earth','Elf','Evil','Fey','Flying','Giant','Goblin','God','Holy','Human','Metal','Mutant','Orc','Plant','Primordial','Psychic','Reptile','Sea','Smallkin','Tech','Undead','Void'];
+const CLASSES=['Warrior','Knight','Terror','Mage','Strategist','Summoner','Sentinel','Vanguard','Assassin','Ranger','Stormcaller','Necromancer','Priest','Rogue','Paladin','Cleric','Bard','Monk','Barbarian','Spellblade','Illusionist','Warden','Spiritcaller','Dawnblade','Catalyst','Druid','Warlock','Wizard','Templar','Spellbreaker','Reaver','Berserker','Gladiator','Shadowdancer','Trickster','Hunter','Shaman','Herald','Inquisitor','Skirmisher'];
+const TIERS=['Hero','Lieutenant','Minion'];
+const TYPE1_PCTS=[50,55,60,65,70,75,80,85,90,95,100];
+const AOE_PATTERNS=['Single','Radius_N','Ring_N','Line','Pierce','Cone','Sweeping_Arc','Cross','Wall','Aimed_Wall','Leap_AoE','Multi_Select','Split_N','Chain_N','Wave','Creeping_Line','Boomerang','Spiral','Double_Tap','Trap','Zone','Barrier'];
+const DMG_TYPES=['None','Normal','Special','Hybrid'];
+const MOVE_TYPES=['None','Dash','Teleport','Leap','Push','Pull','Swap','Charge-through'];
+const EFF_TYPES=['','Burn','Poison','Bleed','Regen','Heal','Stun','Root','Slow','Freeze','Blind','Fear','Silence','Weaken','Curse','Shield'];
+const TRIGGERS=['Always','On_Crit','On_Kill','Chance'];
+const EFF_TARGETS=['Enemy','Self','Allies','All'];
+const WEAKEN_STATS=['','Attack','Defense','Special_Attack','Special_Defense','Speed','Dodge','Crit_Chance'];
+const TRAP_TICKS=['One_shot','Continuous'];
+const SYN_STATS=['','attack','defense','special attack','special defense','regen','speed','dodge','health','crit','critb'];
+const MOVE_TARGETS=['Self','Ally','Enemy','Any'];
+
+const COMBAT_KEYS=['hp','atk','def_','spatk','spdef','spd'];
+const COMBAT_LABELS=['Health','Attack','Defense','Sp.Atk','Sp.Def','Speed'];
+const UTIL_KEYS=['regen','dodge','crit','critb'];
+const UTIL_LABELS=['Regen','Dodge','Crit %','Crit Bonus'];
+const ALL_STAT_KEYS=[...COMBAT_KEYS,...UTIL_KEYS];
+const ALL_STAT_LABELS=[...COMBAT_LABELS,...UTIL_LABELS];
+const STAT_STEPS={hp:5,atk:1,def_:1,spatk:1,spdef:1,spd:1,regen:0.5,dodge:1,crit:1,critb:0.05};
+const STAT_COLORS={hp:'#4a9a6a',atk:'#c04040',def_:'#4060b0',spatk:'#9040b0',spdef:'#406090',spd:'#b08030',regen:'#5a8a5a',dodge:'#708040',crit:'#c06030',critb:'#a05030'};
+const TIER_COLORS={Hero:'#d4af37',Lieutenant:'#9ab0c8',Minion:'#7a7a9a'};
+const TIER_BG={Hero:'rgba(212,175,55,0.12)',Lieutenant:'rgba(154,176,200,0.1)',Minion:'rgba(122,122,154,0.08)'};
+
+// ============================================================
+// STATE
+// ============================================================
+let chars = [];
+let selectedId = null;
+let subTab = 'stats';
+let search = '';
+let tierFilter = 'All';
+let compareId = '';
+let actionOpen = {std:false,u1:false,u2:false,u3:false};
+let ranges = {};
+let tierAvgs = {};
+
+function safeNum(v,fb=0){const n=parseFloat(v);return isNaN(n)?fb:n;}
+
+function computeRanges(){
+  ranges={};
+  ALL_STAT_KEYS.forEach(k=>{
+    const vals=chars.map(c=>safeNum(c[k])).filter(v=>v>0);
+    ranges[k]=vals.length?{min:Math.min(...vals),max:Math.max(...vals)}:{min:0,max:100};
+  });
+}
+function computeAvgs(){
+  tierAvgs={};
+  TIERS.forEach(t=>{
+    const g=chars.filter(c=>c.tier===t);
+    if(!g.length){tierAvgs[t]={};return;}
+    const a={};
+    ALL_STAT_KEYS.forEach(k=>{a[k]=g.reduce((s,c)=>s+safeNum(c[k]),0)/g.length;});
+    tierAvgs[t]=a;
+  });
+}
+
+// ============================================================
+// STORAGE
+// ============================================================
+function saveToStorage(){
+  try{localStorage.setItem('kw-editor-v1',JSON.stringify(chars));}catch(e){}
+}
+function loadFromStorage(){
+  try{
+    const d=localStorage.getItem('kw-editor-v1');
+    if(d){chars=JSON.parse(d);return true;}
+  }catch(e){}
+  return false;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+function init(){
+  if(!loadFromStorage()){
+    chars=parseRows(ROWS_DEFAULT);
+  }
+  computeRanges();computeAvgs();
+  renderList();
+  setupHeaderButtons();
+}
+
+function setupHeaderButtons(){
+  document.getElementById('btn-back').onclick=()=>{selectedId=null;showList();};
+  document.getElementById('btn-new').onclick=()=>openModal('add');
+  document.getElementById('btn-save').onclick=()=>{
+    document.getElementById('save-textarea').value=JSON.stringify(chars,null,2);
+    openModal('save');
+  };
+  document.getElementById('btn-csv').onclick=exportCSV;
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showList(){
+  selectedId=null;subTab='stats';compareId='';
+  document.getElementById('btn-back').style.display='none';
+  document.getElementById('btn-new').style.display='';
+  document.getElementById('header-title').innerHTML=`
+    <div style="font-size:14px;font-weight:800;color:#d4af37;letter-spacing:.05em">KINDRED WARS</div>
+    <div style="font-size:9px;color:#22224a;letter-spacing:.12em">DATA EDITOR</div>`;
+  renderList();
+}
+
+function showDetail(id){
+  selectedId=id;subTab='stats';
+  const char=chars.find(c=>c.id===id);
+  document.getElementById('btn-back').style.display='';
+  document.getElementById('btn-new').style.display='none';
+  document.getElementById('header-title').innerHTML=`
+    <div style="font-size:10px;color:#22224a;font-family:monospace">${char.id}</div>
+    <div style="font-size:14px;font-weight:700;color:#d0d0e8">${char.name||'Unnamed'}</div>`;
+  renderDetail();
+}
+
+function updateChar(key,val){
+  const idx=chars.findIndex(c=>c.id===selectedId);
+  if(idx<0)return;
+  chars[idx]={...chars[idx],[key]:val};
+  computeRanges();computeAvgs();
+  saveToStorage();
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(name){document.getElementById('modal-'+name).style.display='flex';}
+function closeModal(name){
+  document.getElementById('modal-'+name).style.display='none';
+  if(name==='load'){document.getElementById('load-textarea').value='';document.getElementById('load-msg').style.display='none';}
+}
+function copyAll(){
+  const ta=document.getElementById('save-textarea');
+  try{navigator.clipboard.writeText(ta.value).then(()=>{
+    const btn=document.getElementById('btn-copy');
+    btn.textContent='✓ Copied!';btn.style.color='#70c870';btn.style.background='rgba(100,200,100,0.12)';
+    setTimeout(()=>{btn.textContent='Copy All Text';btn.style.color='#d4af37';btn.style.background='rgba(212,175,55,0.12)';},2000);
+  });}catch(e){ta.select();document.execCommand('copy');}
+}
+function loadData(){
+  const txt=document.getElementById('load-textarea').value.trim();
+  const msg=document.getElementById('load-msg');
+  try{
+    const data=JSON.parse(txt);
+    if(Array.isArray(data)&&data.length>0){
+      chars=data;computeRanges();computeAvgs();saveToStorage();
+      closeModal('load');showList();
+    } else {msg.textContent='Not a valid character array.';msg.style.display='';}
+  }catch(e){msg.textContent='Could not parse. Make sure you copied the full text.';msg.style.display='';}
+}
+function createChar(){
+  const tier=document.getElementById('new-tier').value;
+  const pfx=tier[0];
+  const used=new Set(chars.filter(c=>c.id&&c.id.startsWith(pfx)).map(c=>parseInt(c.id.slice(1))||0));
+  let n=1;while(used.has(n))n++;
+  const id=pfx+String(n).padStart(3,'0');
+  chars.push({id,name:'',tag:'',tier,cls:'Warrior',type1:'',type1pct:100,type2:'',
+    hp:500,regen:10,atk:100,def_:100,spatk:100,spdef:100,spd:5,dodge:10,crit:20,critb:2,
+    s1t:'',s1r:'',s1s:'',s1m:'',s2t:'',s2r:'',s2s:'',s2m:'',
+    s3t:'',s3r:'',s3s:'',s3m:'',s4t:'',s4r:'',s4s:'',s4m:'',
+    scls:'',sclsr:'',sclsq:'',sclscdr:'',sclsstat:'',sclsmod:'',stdAtk:''});
+  saveToStorage();closeModal('add');showDetail(id);
+}
+
+// ============================================================
+// CSV EXPORT
+// ============================================================
+function exportCSV(){
+  const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const hdr=SCHEMA.join(',');
+  const rows=chars.map(c=>SCHEMA.map(k=>esc(c[k])).join(','));
+  const blob=new Blob([hdr+'\n'+rows.join('\n')],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='KindredWars.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// RENDER HELPERS
+// ============================================================
+function el(tag,attrs,inner){
+  const e=document.createElement(tag);
+  if(attrs)Object.entries(attrs).forEach(([k,v])=>{
+    if(k==='style'&&typeof v==='object')Object.assign(e.style,v);
+    else if(k.startsWith('on'))e[k]=v;
+    else e.setAttribute(k,v);
+  });
+  if(inner!==undefined)e.innerHTML=inner;
+  return e;
+}
+function h(tag,attrs={},children=[]){
+  const e=el(tag,attrs);
+  children.forEach(c=>{if(c!=null)e.appendChild(typeof c==='string'?document.createTextNode(c):c);});
+  return e;
+}
+function fmtVal(v,step){
+  const n=safeNum(v);
+  if(step<0.1)return n.toFixed(2);
+  if(step<1)return n.toFixed(1);
+  return Math.round(n).toString();
+}
+
+function mkLabel(txt){const l=el('label',{class:'lbl'},txt);return l;}
+
+function mkSelect(options,value,onChange){
+  const s=el('select');
+  options.forEach(o=>{
+    const val=typeof o==='object'?o.value:o;
+    const lbl=typeof o==='object'?o.label:String(o);
+    const opt=el('option',{value:val},lbl);
+    if(String(val)===String(value))opt.selected=true;
+    s.appendChild(opt);
+  });
+  s.onchange=()=>onChange(s.value);
+  return s;
+}
+
+function mkField(label,value,onChange,type='text',step){
+  const wrap=el('div');
+  if(label)wrap.appendChild(mkLabel(label));
+  const inp=el('input',{type:type||'text',value:value??''});
+  if(step)inp.setAttribute('step',step);
+  inp.oninput=()=>onChange(inp.value);
+  wrap.appendChild(inp);
+  return wrap;
+}
+
+function mkSel(label,options,value,onChange,style){
+  const wrap=el('div');
+  if(style)Object.assign(wrap.style,style);
+  if(label)wrap.appendChild(mkLabel(label));
+  wrap.appendChild(mkSelect(options,value,onChange));
+  return wrap;
+}
+
+function mkStepper(label,value,onChange,min,max,step){
+  const v=safeNum(value,min);
+  const wrap=el('div');
+  if(label)wrap.appendChild(mkLabel(label));
+  const row=el('div',{class:'stepper'});
+  const minus=el('button',{class:'stepper-btn'},'-');
+  const valEl=el('div',{class:'stepper-val'},fmtVal(v,step));
+  const plus=el('button',{class:'stepper-btn'},'+');
+  minus.onclick=()=>{const nv=parseFloat(Math.max(min,v-step).toFixed(4));onChange(nv);};
+  plus.onclick=()=>{const nv=parseFloat(Math.min(max,v+step).toFixed(4));onChange(nv);};
+  row.appendChild(minus);row.appendChild(valEl);row.appendChild(plus);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function mkSlider(label,value,onChange,min,max,step){
+  const v=safeNum(value,min);
+  const fmt=fmtVal(v,step);
+  const wrap=el('div');
+  if(label){
+    const row=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'3px'}});
+    row.appendChild(mkLabel(label));
+    const valEl=el('span',{style:{fontSize:'12px',color:'#d4af37',fontWeight:'700'}},fmt);
+    row.appendChild(valEl);
+    wrap.appendChild(row);
+  }
+  const inp=el('input',{type:'range',min,max,step,value:v});
+  inp.oninput=()=>onChange(parseFloat(inp.value));
+  wrap.appendChild(inp);
+  return wrap;
+}
+
+function mkStatBar(statKey,label,value,rng,avg,cmpVal,onChange){
+  const v=safeNum(value);
+  const pct=rng.max>rng.min?Math.max(0,Math.min(1,(v-rng.min)/(rng.max-rng.min))):0;
+  const avgPct=avg!=null&&rng.max>rng.min?Math.max(0,Math.min(1,(avg-rng.min)/(rng.max-rng.min))):null;
+  const cmpPct=cmpVal!=null&&rng.max>rng.min?Math.max(0,Math.min(1,(cmpVal-rng.min)/(rng.max-rng.min))):null;
+  const step=STAT_STEPS[statKey]||1;
+  const color=STAT_COLORS[statKey]||'#d4af37';
+  const fmt=fmtVal(v,step);
+
+  const wrap=el('div',{class:'stat-bar-wrap'});
+  const row=el('div',{class:'stat-bar-row'});
+  const lbl=el('span',{class:'stat-bar-lbl'},label);
+  const vals=el('div',{class:'stat-bar-vals'});
+  if(cmpVal!=null)vals.appendChild(el('span',{class:'stat-bar-cmp'},'cmp:'+Math.round(cmpVal)));
+  if(avg!=null)vals.appendChild(el('span',{class:'stat-bar-avg'},'avg:'+Math.round(avg)));
+  const valEl=el('span',{class:'stat-bar-val',style:{color}},fmt);
+  vals.appendChild(valEl);
+  row.appendChild(lbl);row.appendChild(vals);
+  wrap.appendChild(row);
+
+  const track=el('div',{class:'stat-bar-track'});
+  const fill=el('div',{class:'stat-bar-fill',style:{width:pct*100+'%',background:color,opacity:'0.75'}});
+  track.appendChild(fill);
+  if(avgPct!=null){const m=el('div',{class:'stat-bar-marker',style:{left:avgPct*100+'%',background:'rgba(100,180,100,0.6)'}});track.appendChild(m);}
+  if(cmpPct!=null){const m=el('div',{class:'stat-bar-marker',style:{left:cmpPct*100+'%',background:'rgba(100,160,220,0.8)',top:'2px',bottom:'2px',borderRadius:'1px'}});track.appendChild(m);}
+
+  function setFromX(clientX){
+    const rect=track.getBoundingClientRect();
+    const p=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+    let nv=rng.min+p*(rng.max-rng.min);
+    nv=Math.round(nv/step)*step;
+    nv=parseFloat(Math.max(rng.min,Math.min(rng.max,nv)).toFixed(4));
+    onChange(nv);
+    fill.style.width=(Math.max(0,Math.min(1,(nv-rng.min)/(rng.max-rng.min)))*100)+'%';
+    valEl.textContent=fmtVal(nv,step);
+  }
+  track.onclick=e=>setFromX(e.clientX);
+  track.ontouchstart=e=>{e.preventDefault();setFromX(e.touches[0].clientX);};
+  wrap.appendChild(track);
+  return wrap;
+}
+
+function mkActBar(label,value,min,max,step,color,onChange){
+  const v=safeNum(value,min);
+  const pct=max>min?Math.max(0,Math.min(1,(v-min)/(max-min))):0;
+  const fmt=fmtVal(v,step);
+  const wrap=el('div',{style:{marginBottom:'10px'}});
+  const row=el('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:'3px'}});
+  row.appendChild(el('span',{style:{fontSize:'10px',color:'#5a5a8a',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.07em'}},label));
+  const valEl=el('span',{style:{fontSize:'13px',color,fontWeight:'700'}},fmt);
+  row.appendChild(valEl);
+  wrap.appendChild(row);
+  const track=el('div',{class:'stat-bar-track'});
+  const fill=el('div',{class:'stat-bar-fill',style:{width:pct*100+'%',background:color,opacity:'0.75'}});
+  track.appendChild(fill);
+  function setFromX(clientX){
+    const rect=track.getBoundingClientRect();
+    const p=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+    let nv=min+p*(max-min);nv=Math.round(nv/step)*step;
+    nv=parseFloat(Math.max(min,Math.min(max,nv)).toFixed(4));
+    onChange(nv);fill.style.width=(Math.max(0,Math.min(1,(nv-min)/(max-min)))*100)+'%';valEl.textContent=fmtVal(nv,step);
+  }
+  track.onclick=e=>setFromX(e.clientX);
+  track.ontouchstart=e=>{e.preventDefault();setFromX(e.touches[0].clientX);};
+  wrap.appendChild(track);
+  return wrap;
+}
+
+function mkGrid(children,cols,gap){
+  const g=el('div',{style:{display:'grid',gridTemplateColumns:`repeat(${cols},1fr)`,gap:gap||'8px'}});
+  children.forEach(c=>{if(c)g.appendChild(c);});
+  return g;
+}
+
+// ============================================================
+// RENDER LIST
+// ============================================================
+function renderList(){
+  const content=document.getElementById('content');
+  content.innerHTML='';
+
+  // Load save button
+  const loadBtn=el('button',{class:'btn-wide',style:{background:'#0c1a2a',borderColor:'#1e3a5a',color:'#70a8d0',marginBottom:'10px'}});
+  loadBtn.textContent='Load Save Data';
+  loadBtn.onclick=()=>openModal('load');
+  content.appendChild(loadBtn);
+
+  // Search
+  const searchRow=el('div',{style:{display:'flex',gap:'8px',marginBottom:'10px'}});
+  const searchInp=el('input',{id:'search-input',placeholder:'Search name, class, ID…',value:search});
+  searchInp.oninput=()=>{search=searchInp.value;renderList();};
+  searchRow.appendChild(searchInp);
+  content.appendChild(searchRow);
+
+  // Tier filter
+  const tierRow=el('div',{class:'tier-filters'});
+  ['All','Hero','Lieutenant','Minion'].forEach(t=>{
+    const active=tierFilter===t;
+    const tc=TIER_COLORS[t]||'#d4af37';
+    const btn=el('button',{class:'tier-btn',style:{
+      border:`1px solid ${active?tc:'#181836'}`,
+      background:active?(TIER_BG[t]||'rgba(212,175,55,0.1)'):'transparent',
+      color:active?tc:'#2a2a44'
+    }},t==='All'?'All':t[0]);
+    btn.onclick=()=>{tierFilter=t;renderList();};
+    tierRow.appendChild(btn);
+  });
+  content.appendChild(tierRow);
+
+  // Filter chars
+  let filtered=chars;
+  if(tierFilter!=='All')filtered=filtered.filter(c=>c.tier===tierFilter);
+  if(search.trim()){const q=search.toLowerCase();filtered=filtered.filter(c=>(c.name||'').toLowerCase().includes(q)||(c.id||'').toLowerCase().includes(q)||(c.cls||'').toLowerCase().includes(q));}
+
+  const countEl=el('div',{style:{fontSize:'10px',color:'#1a1a34',marginBottom:'8px'}},filtered.length+' characters');
+  content.appendChild(countEl);
+
+  // Character cards
+  filtered.forEach(c=>{
+    const tc=TIER_COLORS[c.tier]||'#888';
+    const card=el('div',{class:'char-card'});
+    card.innerHTML=`
+      <div class="char-id">${c.id}</div>
+      <div style="flex:1;min-width:0">
+        <div class="char-name">${c.name||'<span style="color:#2a2a44">Unnamed</span>'}</div>
+        <div class="char-cls">${c.cls||''}</div>
+      </div>
+      <div class="tier-badge" style="color:${tc};background:${TIER_BG[c.tier]||'transparent'};border:1px solid ${tc}44">${(c.tier||'?')[0]}</div>`;
+    card.onclick=()=>showDetail(c.id);
+    content.appendChild(card);
+  });
+}
+
+// ============================================================
+// RENDER DETAIL
+// ============================================================
+function renderDetail(){
+  const char=chars.find(c=>c.id===selectedId);
+  if(!char)return;
+  const content=document.getElementById('content');
+  content.innerHTML='';
+
+  // Core info card
+  const infoCard=el('div',{class:'card'});
+  const g1=el('div',{class:'g2'});
+
+  // Name (full width)
+  const nameWrap=el('div',{class:'span2'});
+  nameWrap.appendChild(mkLabel('Name'));
+  const nameInp=el('input',{type:'text',value:char.name||''});
+  nameInp.oninput=()=>updateChar('name',nameInp.value);
+  nameWrap.appendChild(nameInp);
+  g1.appendChild(nameWrap);
+
+  // Tag
+  const tagWrap=el('div');
+  tagWrap.appendChild(mkLabel('Tag'));
+  const tagInp=el('input',{type:'text',value:char.tag||''});
+  tagInp.oninput=()=>updateChar('tag',tagInp.value);
+  tagWrap.appendChild(tagInp);
+  g1.appendChild(tagWrap);
+
+  // Tier
+  g1.appendChild(mkSel('Tier',TIERS,char.tier,v=>updateChar('tier',v)));
+
+  // Class (full width)
+  const clsWrap=el('div',{class:'span2'});
+  clsWrap.appendChild(mkSel('Class',CLASSES,char.cls,v=>updateChar('cls',v)));
+  g1.appendChild(clsWrap);
+
+  // Type 1
+  g1.appendChild(mkSel('Type 1',['',...TYPES],char.type1,v=>updateChar('type1',v)));
+
+  // Type 1 %
+  const t1pct=Math.max(50,Math.min(100,Math.round((safeNum(char.type1pct,100))/5)*5));
+  g1.appendChild(mkSel('Type 1 %',TYPE1_PCTS.map(p=>({value:p,label:p+'%'})),t1pct,v=>{updateChar('type1pct',parseInt(v));renderDetail();}));
+
+  // Type 2
+  g1.appendChild(mkSel('Type 2',['',...TYPES],char.type2,v=>updateChar('type2',v)));
+
+  // Type 2 % (read only)
+  const t2wrap=el('div');
+  t2wrap.appendChild(mkLabel('Type 2 %'));
+  t2wrap.appendChild(el('div',{style:{background:'#080810',border:'1px solid #252540',borderRadius:'5px',padding:'6px 8px',color:'#44447a',fontSize:'13px'}},(100-t1pct)+'%'));
+  g1.appendChild(t2wrap);
+
+  infoCard.appendChild(g1);
+  content.appendChild(infoCard);
+
+  // Sub tabs
+  const tabsEl=el('div',{class:'subtabs'});
+  ['stats','actions','synergies'].forEach(t=>{
+    const btn=el('button',{class:'subtab '+(subTab===t?'active':'inactive')},t.charAt(0).toUpperCase()+t.slice(1));
+    btn.onclick=()=>{subTab=t;renderDetail();};
+    tabsEl.appendChild(btn);
+  });
+  content.appendChild(tabsEl);
+
+  if(subTab==='stats')renderStats(char,content);
+  if(subTab==='actions')renderActions(char,content);
+  if(subTab==='synergies')renderSynergies(char,content);
+}
+
+// ============================================================
+// STATS TAB
+// ============================================================
+function renderStats(char,content){
+  const card=el('div',{class:'card'});
+
+  // Header row with compare dropdown
+  const headerRow=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}});
+  headerRow.appendChild(el('span',{style:{fontSize:'10px',color:'#5a5a8a',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.1em'}},'Stats — tap bar to set'));
+  const legend=el('div',{style:{display:'flex',gap:'10px',fontSize:'9px',color:'#33334a'}});
+  legend.innerHTML='<span style="color:rgba(100,180,100,0.8)">█ avg</span><span style="color:rgba(100,160,220,0.8)" id="cmp-legend" '+(compareId?'':'style="display:none"')+'>█ cmp</span>';
+  headerRow.appendChild(legend);
+  card.appendChild(headerRow);
+
+  // Compare dropdown
+  const cmpOptions=[{value:'',label:'— compare with —'},...chars.filter(c=>c.id!==char.id).map(c=>({value:c.id,label:c.id+' '+(c.name||'Unnamed')}))];
+  card.appendChild(mkSel('',cmpOptions,compareId,v=>{compareId=v;renderDetail();},{marginBottom:'10px'}));
+
+  const avg=tierAvgs[char.tier]||{};
+  const cmpChar=compareId?chars.find(c=>c.id===compareId):null;
+
+  ALL_STAT_KEYS.forEach((k,i)=>{
+    const rng=ranges[k]||{min:0,max:100};
+    card.appendChild(mkStatBar(k,ALL_STAT_LABELS[i],char[k],rng,avg[k],cmpChar?safeNum(cmpChar[k]):null,v=>updateChar(k,v)));
+  });
+
+  content.appendChild(card);
+}
+
+// ============================================================
+// ACTIONS TAB
+// ============================================================
+function renderActions(char,content){
+  const ACTS=[{pfx:'std',label:'Standard Attack'},{pfx:'u1',label:'Unique 1'},{pfx:'u2',label:'Unique 2'},{pfx:'u3',label:'Unique 3'}];
+  const ACT_BARS=[
+    {key:'dmgMod',label:'Dmg Modifier',min:0,max:2.5,step:0.05,color:'#c04040'},
+    {key:'aoeRange',label:'AoE Range',min:0,max:6,step:0.5,color:'#4060b0'},
+    {key:'aoeSize',label:'AoE Size',min:0,max:7,step:1,color:'#9040b0'},
+    {key:'cooldown',label:'Cooldown',min:1,max:5,step:1,color:'#b08030'},
+  ];
+
+  ACTS.forEach(({pfx,label})=>{
+    const nameKey=pfx==='std'?'stdAtk':pfx+'_name';
+    const name=char[nameKey]||'';
+    const g=(k,fb)=>{const fk=pfx+'_'+k;return fk in char?char[fk]:fb;};
+    const s=(k,v)=>updateChar(pfx+'_'+k,v);
+    const open=actionOpen[pfx];
+
+    const card=el('div',{class:'card'});
+    const hdr=el('div',{class:'action-header'});
+    const hdrLeft=el('div');
+    hdrLeft.appendChild(el('span',{style:{fontSize:'10px',color:'#5a5a8a',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.07em'}},label));
+    if(name)hdrLeft.appendChild(el('span',{style:{fontSize:'12px',color:'#b0b0d0',marginLeft:'8px'}},name));
+    hdr.appendChild(hdrLeft);
+    hdr.appendChild(el('span',{class:'action-chevron'},open?'▲':'▼'));
+    hdr.onclick=()=>{actionOpen[pfx]=!actionOpen[pfx];renderDetail();};
+    hdr.style.marginBottom=open?'10px':'0';
+    card.appendChild(hdr);
+
+    if(open){
+      // Name field
+      const nameWrap=el('div',{style:{marginBottom:'12px'}});
+      nameWrap.appendChild(mkLabel('Name'));
+      const nameInp=el('input',{type:'text',value:name});
+      nameInp.oninput=()=>updateChar(nameKey,nameInp.value);
+      nameWrap.appendChild(nameInp);
+      card.appendChild(nameWrap);
+
+      // Action bars card
+      const barsCard=el('div',{class:'card',style:{padding:'10px',marginBottom:'8px'}});
+      barsCard.appendChild(el('div',{class:'sec-title'},'Action Stats — tap to set'));
+      ACT_BARS.forEach(({key,label:bl,min,max,step,color})=>{
+        barsCard.appendChild(mkActBar(bl,g(key,key==='cooldown'?2:1),min,max,step,color,v=>s(key,v)));
+      });
+      card.appendChild(barsCard);
+
+      // Dmg + AoE pattern
+      const pattern=g('aoePattern','Single');
+      card.appendChild(mkGrid([
+        mkSel('Dmg Type',DMG_TYPES,g('dmgType','None'),v=>s('dmgType',v)),
+        mkSel('AoE Pattern',AOE_PATTERNS,pattern,v=>{s('aoePattern',v);renderDetail();}),
+        mkStepper('Recharge Steps',g('recharge',1),v=>s('recharge',v),0,5,1),
+        mkStepper('Release Steps',g('release',1),v=>s('release',v),1,5,1),
+      ],2));
+
+      // Trap tick
+      if(pattern==='Trap'||pattern==='Zone'){
+        const tw=el('div',{style:{marginTop:'8px'}});
+        tw.appendChild(mkSel('Trap Tick',TRAP_TICKS,g('trapTick','One_shot'),v=>s('trapTick',v)));
+        card.appendChild(tw);
+      }
+
+      // Movement
+      const moveCard=el('div',{class:'card',style:{padding:'10px',marginTop:'8px',marginBottom:'8px'}});
+      moveCard.appendChild(el('div',{class:'sec-title'},'Movement'));
+      moveCard.appendChild(mkGrid([
+        mkSel('Type',MOVE_TYPES,g('moveType','None'),v=>s('moveType',v)),
+        mkStepper('Distance',g('moveDist',0),v=>s('moveDist',v),0,8,1),
+        mkSel('Target',MOVE_TARGETS,g('moveTarget','Self'),v=>s('moveTarget',v)),
+      ],2));
+      card.appendChild(moveCard);
+
+      // Effects
+      ['e1','e2'].forEach((ep,ei)=>{
+        const effCard=el('div',{class:'card',style:{padding:'10px',marginBottom:'8px'}});
+        effCard.appendChild(el('div',{class:'sec-title'},'Effect '+(ei+1)));
+        const effType=g(ep+'type','');
+        const trigger=g(ep+'trig','Always');
+        effCard.appendChild(mkSel('Type',EFF_TYPES,effType,v=>{s(ep+'type',v);renderDetail();}));
+        effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
+        effCard.appendChild(mkSlider('Magnitude',g(ep+'mag',0),v=>s(ep+'mag',v),-50,150,1));
+        effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
+        effCard.appendChild(mkStepper('Duration (steps)',g(ep+'dur',0),v=>s(ep+'dur',v),0,10,1));
+        effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
+        effCard.appendChild(mkGrid([
+          mkSel('Trigger',TRIGGERS,trigger,v=>{s(ep+'trig',v);renderDetail();}),
+          mkStepper('Chance %',g(ep+'chance',100),v=>s(ep+'chance',v),0,100,5),
+        ],2));
+        effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
+        effCard.appendChild(mkSel('Target',EFF_TARGETS,g(ep+'target','Enemy'),v=>s(ep+'target',v)));
+        effCard.appendChild(el('div',{style:{marginTop:'10px'}}));
+        effCard.appendChild(mkSel('Weaken Stat',WEAKEN_STATS,g(ep+'stat',''),v=>s(ep+'stat',v)));
+        card.appendChild(effCard);
+      });
+    }
+    content.appendChild(card);
+  });
+}
+
+// ============================================================
+// SYNERGIES TAB
+// ============================================================
+function renderSynergies(char,content){
+  [[1,'s1t','s1r','s1s','s1m'],[2,'s2t','s2r','s2s','s2m'],[3,'s3t','s3r','s3s','s3m'],[4,'s4t','s4r','s4s','s4m']].forEach(([n,tk,rk,sk,mk])=>{
+    const card=el('div',{class:'card'});
+    card.appendChild(el('div',{class:'sec-title'},'Synergy '+n));
+    card.appendChild(mkGrid([
+      mkSel('Type',['',...TYPES],char[tk]||'',v=>updateChar(tk,v)),
+      mkStepper('Range',safeNum(char[rk]),v=>updateChar(rk,v),0,6,0.5),
+      mkSel('Stat',SYN_STATS,char[sk]||'',v=>updateChar(sk,v)),
+      mkStepper('Modifier',safeNum(char[mk]),v=>updateChar(mk,v),0,5,0.25),
+    ],2));
+    content.appendChild(card);
+  });
+
+  const clsCard=el('div',{class:'card card-green'});
+  clsCard.appendChild(el('div',{class:'sec-title',style:{color:'#5a8a5a'}},'Class Synergy'));
+  clsCard.appendChild(mkGrid([
+    mkSel('Class',['',...CLASSES],char.scls||'',v=>updateChar('scls',v)),
+    mkStepper('Range',safeNum(char.sclsr),v=>updateChar('sclsr',v),0,6,0.5),
+    mkStepper('Qty Required',safeNum(char.sclsq),v=>updateChar('sclsq',v),0,10,1),
+    mkStepper('CDR',safeNum(char.sclscdr),v=>updateChar('sclscdr',v),0,5,0.5),
+    mkSel('Stat',SYN_STATS,char.sclsstat||'',v=>updateChar('sclsstat',v)),
+    mkStepper('Modifier',safeNum(char.sclsmod),v=>updateChar('sclsmod',v),0,5,0.25),
+  ],2));
+  content.appendChild(clsCard);
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+</script>
+
+</body>
+</html>
