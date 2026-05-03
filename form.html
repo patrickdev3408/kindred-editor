@@ -141,6 +141,14 @@ const EFF_TARGETS = ['Enemy','Self','Allies','All'];
 const WEAKEN_STATS = ['','Attack','Defense','Special Attack','Special Defense','Speed','Dodge','Crit Chance'];
 const TRAP_TICKS = ['','One_shot','Continuous'];
 
+const OPTS_DMGMOD = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35, 1.4, 1.45, 1.5, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85, 1.9, 1.95, 2.0, 2.05, 2.1, 2.15, 2.2, 2.25, 2.3, 2.35, 2.4, 2.45, 2.5];
+const OPTS_AOESIZE = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const OPTS_AOERANGE = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0];
+const OPTS_COOLDOWN = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const OPTS_MAG = [-50, -45, -40, -35, -30, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150];
+const OPTS_DUR = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const OPTS_ENERGY = [{'value':1,'label':'1 Energy'},{'value':2,'label':'2 Energy'}];
+
 const STAT_COLORS = {Health:'#4a9a6a',Regen:'#5a8a5a',Attack:'#c04040',Defense:'#4060b0','Special Attack':'#9040b0','Special Defense':'#406090',Speed:'#b08030',Dodge:'#708040','Crit Chance':'#c06030','Crit Bonus':'#a05030'};
 const STAT_RANGES = {Health:[0,900],Regen:[0,45],Attack:[0,200],Defense:[0,200],'Special Attack':[0,200],'Special Defense':[0,200],Speed:[0,100],Dodge:[0,25],'Crit Chance':[0,35],'Crit Bonus':[0.5,3]};
 const STAT_STEPS = {Health:5,Regen:0.5,Attack:1,Defense:1,'Special Attack':1,'Special Defense':1,Speed:1,Dodge:1,'Crit Chance':1,'Crit Bonus':0.05};
@@ -247,15 +255,30 @@ async function sheetsGet(range) {
   return data.values || [];
 }
 
-// Get entire sheet at once (fast since it's one HTTP call)
+// Get sheet using batchGet to skip the huge description columns (F-I)
 async function sheetsGetAll() {
-  const url = SHEETS_BASE + '/' + SHEET_ID + '/values/' + 
-    encodeURIComponent(SHEET_NAME) + 
-    '?key=' + API_KEY;
+  // Fetch two ranges and merge: A:E (ID/Name/Tag/Tier/Class) + J:HP (stats/synergies/actions)
+  // This skips col F (description) and G,H,I (play styles) which are long and unused
+  const ranges = ['Characters!A:E', 'Characters!J:HP'];
+  const url = SHEETS_BASE + '/' + SHEET_ID + '/values:batchGet?ranges=' + 
+    ranges.map(r => encodeURIComponent(r)).join('&ranges=') +
+    '&key=' + API_KEY;
   const res = await fetch(url);
   if(!res.ok) throw new Error('Sheets API error: ' + res.status);
   const data = await res.json();
-  return data.values || [];
+  const rangeA = (data.valueRanges[0].values || []);
+  const rangeB = (data.valueRanges[1].values || []);
+  // Merge: for each row, combine first 5 cols + 4 empty placeholders + rest
+  const merged = [];
+  const maxRows = Math.max(rangeA.length, rangeB.length);
+  for(let i = 0; i < maxRows; i++){
+    const a = rangeA[i] || [];
+    const b = rangeB[i] || [];
+    // Pad a to 5 cols, add 4 empty (F,G,H,I = description + playstyles), then b
+    const row = [...a, ...Array(Math.max(0,5-a.length)).fill(''), '','','','', ...b];
+    merged.push(row);
+  }
+  return merged;
 }
 
 // Apps Script still used for writes
@@ -532,20 +555,20 @@ function buildActions(){
 
   const FIELDS = [
     {label:'Name',       key:'NAME',      type:'text'},
-    {label:'Dmg Type',   key:'DMGTYPE',   type:'sel',  opts:()=>DMG_TYPES},
-    {label:'Dmg Mod',    key:'DMGMOD',    type:'num',  step:0.05, min:0,   max:2.5},
-    {label:'AoE Pattern',key:'AOEPATTERN',type:'sel',  opts:()=>AOE_PATTERNS},
-    {label:'AoE Size',   key:'AOESIZE',   type:'num',  step:1,    min:0,   max:10},
-    {label:'AoE Range',  key:'AOERANGE',  type:'num',  step:0.5,  min:0,   max:10},
-    {label:'Energy',     key:'ENERGYCOST',type:'sel',  opts:()=>[{value:1,label:'1'},{value:2,label:'2'}]},
-    {label:'Cooldown',   key:'COOLDOWN',  type:'num',  step:1,    min:0,   max:10},
-    {label:'Trap Tick',  key:'TRAPTICK',  type:'sel',  opts:()=>['','One_shot','Continuous']},
-    {label:'E1 Type',    key:'E1TYPE',    type:'sel',  opts:()=>EFF_TYPES},
-    {label:'E1 Mag',     key:'E1MAG',     type:'num',  step:1,    min:-50, max:150},
-    {label:'E1 Dur',     key:'E1DUR',     type:'num',  step:1,    min:0,   max:10},
-    {label:'E2 Type',    key:'E2TYPE',    type:'sel',  opts:()=>EFF_TYPES},
-    {label:'E2 Mag',     key:'E2MAG',     type:'num',  step:1,    min:-50, max:150},
-    {label:'E2 Dur',     key:'E2DUR',     type:'num',  step:1,    min:0,   max:10},
+    {label:'Dmg Type',   key:'DMGTYPE',   type:'sel', opts:()=>DMG_TYPES},
+    {label:'Dmg Mod',    key:'DMGMOD',    type:'sel', opts:()=>OPTS_DMGMOD, num:true},
+    {label:'AoE Pattern',key:'AOEPATTERN',type:'sel', opts:()=>AOE_PATTERNS},
+    {label:'AoE Size',   key:'AOESIZE',   type:'sel', opts:()=>OPTS_AOESIZE, num:true},
+    {label:'AoE Range',  key:'AOERANGE',  type:'sel', opts:()=>OPTS_AOERANGE, num:true},
+    {label:'Energy',     key:'ENERGYCOST',type:'sel', opts:()=>OPTS_ENERGY},
+    {label:'Cooldown',   key:'COOLDOWN',  type:'sel', opts:()=>OPTS_COOLDOWN, num:true},
+    {label:'Trap Tick',  key:'TRAPTICK',  type:'sel', opts:()=>['','One_shot','Continuous']},
+    {label:'E1 Type',    key:'E1TYPE',    type:'sel', opts:()=>EFF_TYPES},
+    {label:'E1 Mag',     key:'E1MAG',     type:'sel', opts:()=>OPTS_MAG, num:true},
+    {label:'E1 Dur',     key:'E1DUR',     type:'sel', opts:()=>OPTS_DUR, num:true},
+    {label:'E2 Type',    key:'E2TYPE',    type:'sel', opts:()=>EFF_TYPES},
+    {label:'E2 Mag',     key:'E2MAG',     type:'sel', opts:()=>OPTS_MAG, num:true},
+    {label:'E2 Dur',     key:'E2DUR',     type:'sel', opts:()=>OPTS_DUR, num:true},
   ];
 
   const wrapper = document.createElement('div');
@@ -607,21 +630,14 @@ function buildActions(){
         inp.oninput = () => charData[nameCol] = inp.value;
         td.appendChild(inp);
       } else if(field.type === 'sel') {
-        const sel = mkSel(field.opts(), charData[c(field.key)]);
-        sel.style.cssText = selStyle;
-        sel.onchange = () => charData[c(field.key)] = sel.value;
-        td.appendChild(sel);
-      } else {
-        const inp = document.createElement('input');
-        inp.type = 'number';
-        inp.step = field.step || 1;
-        if(field.min !== undefined) inp.min = field.min;
-        if(field.max !== undefined) inp.max = field.max;
         const raw = charData[c(field.key)];
-        inp.value = raw !== '' && raw !== null && raw !== undefined ? parseFloat(raw) || 0 : 0;
-        inp.style.cssText = inpStyle;
-        inp.onchange = () => charData[c(field.key)] = parseFloat(inp.value);
-        td.appendChild(inp);
+        const displayVal = field.num ? (parseFloat(raw)||0) : (raw||'');
+        const sel = mkSel(field.opts(), displayVal);
+        sel.style.cssText = selStyle;
+        sel.onchange = () => {
+          charData[c(field.key)] = field.num ? parseFloat(sel.value) : sel.value;
+        };
+        td.appendChild(sel);
       }
       tr.appendChild(td);
     });
