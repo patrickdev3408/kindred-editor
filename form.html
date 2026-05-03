@@ -161,9 +161,11 @@ const A = {
   TRAPTICK:12, ENERGYCOST:13, COOLDOWN:14
 };
 
-let charData = null; // raw row array from Apps Script
-let rosterCache = null; // all characters loaded once on page load
+let charData = null;
+let rosterCache = {};
 let rosterLoading = false;
+let batchNextStart = 2;
+let batchDone = false;
 let rowIndex = -1;
 let currentId = '';
 let actionOpen = {};
@@ -273,29 +275,47 @@ async function apsFetch(url) {
   }
 }
 
-async function preloadRoster(){
+function updateCacheStatus(){
   const statusEl = document.getElementById('preload-status');
-  statusEl.textContent = 'Loading roster…';
-  statusEl.style.display = '';
+  if(!statusEl) return;
+  const count = Object.keys(rosterCache).length;
+  if(batchDone){
+    statusEl.textContent = '✓ ' + count + ' characters cached';
+    statusEl.style.color = '#80c880';
+    setTimeout(()=>{ statusEl.style.display='none'; }, 2000);
+  } else {
+    statusEl.textContent = '↓ Caching ' + count + ' characters…';
+    statusEl.style.color = '#70a8d0';
+    statusEl.style.display = '';
+  }
+}
+
+async function loadBatch(){
+  if(batchDone || rosterLoading) return;
   rosterLoading = true;
   try {
-    const url = APPS_URL + '?action=getAllCharacters';
+    const url = APPS_URL + '?action=getBatch&startRow=' + batchNextStart + '&batchSize=20';
     const data = await apsFetch(url);
     if(data.rows){
-      rosterCache = {};
       data.rows.forEach(r => {
         const id = String(r.row[0]||'').trim();
         if(id) rosterCache[id] = r;
       });
-      statusEl.textContent = '✓ ' + Object.keys(rosterCache).length + ' characters ready';
-      statusEl.style.color = '#80c880';
-      setTimeout(()=>statusEl.style.display='none', 2000);
+      batchNextStart = data.nextStart || batchNextStart + 20;
+      batchDone = data.done || false;
+      updateCacheStatus();
     }
   } catch(e) {
-    statusEl.textContent = 'Offline mode — load characters individually';
-    statusEl.style.color = '#70a8d0';
+    // Silent fail - cache just won't be complete
   }
   rosterLoading = false;
+  // Continue loading next batch with a small delay
+  if(!batchDone) setTimeout(loadBatch, 800);
+}
+
+async function preloadRoster(){
+  // Start background batch loading
+  setTimeout(loadBatch, 1500);
 }
 
 async function loadChar(){
@@ -307,14 +327,17 @@ async function loadChar(){
   document.getElementById('load-msg').innerHTML += '<span class="spinner"></span>';
   try {
     let data;
-    if(rosterCache && rosterCache[id]){
-      // Instant load from cache
+    if(rosterCache[id]){
+      // Instant from cache
       data = rosterCache[id];
+      msg('load-msg','','info');
     } else {
-      // Fetch individually if not cached
+      // Fetch this character immediately
       const url = APPS_URL + '?action=getCharacter&id=' + encodeURIComponent(id);
       data = await apsFetch(url);
       if(data.error){ msg('load-msg', data.error, 'err'); return; }
+      // Add to cache
+      rosterCache[id] = data;
     }
     charData = data.row;
     rowIndex = data.rowIndex;
