@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Kindred — Character Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:#09091a;color:#e0e0f0;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+button,input,select,textarea{font-family:inherit;}
+#hdr{background:#0c0c1e;border-bottom:1px solid #181836;padding:10px 14px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:20;}
+#hdr-title{flex:1;}
+#hdr-title .t1{font-size:13px;font-weight:800;color:#d4af37;letter-spacing:.05em;}
+#hdr-title .t2{font-size:9px;color:#22224a;letter-spacing:.12em;}
+#content{flex:1;overflow-y:auto;padding:12px;}
+.card{background:#111122;border:1px solid #1a1a38;border-radius:8px;padding:12px;margin-bottom:10px;}
+label.lbl{font-size:10px;color:#5a5a8a;text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:3px;display:block;}
+input[type=text],input[type=number],select{background:#0d0d1a;border:1px solid #252540;border-radius:5px;color:#e0e0f0;padding:6px 8px;font-size:13px;outline:none;width:100%;}
+select{cursor:pointer;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.span2{grid-column:1/-1;}
+.btn{border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;border:1px solid;cursor:pointer;width:100%;margin-top:6px;}
+.btn-gold{background:rgba(212,175,55,.1);border-color:#d4af3744;color:#d4af37;}
+.btn-green{background:rgba(50,120,50,.15);border-color:#2a5a2a;color:#80c880;}
+.btn-blue{background:rgba(100,160,220,.12);border-color:#1e4a7a;color:#70a8d0;}
+.btn-red{background:rgba(180,60,60,.1);border-color:#6a2020;color:#e07070;}
+.btn-sm{padding:5px 10px;font-size:11px;width:auto;}
+.sec{font-size:10px;color:#5a5a8a;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:8px;}
+.tabs{display:flex;background:#0c0c1e;border-radius:8px;padding:3px;margin-bottom:10px;gap:3px;}
+.tab{flex:1;padding:7px 4px;border-radius:6px;border:none;font-size:12px;font-weight:700;cursor:pointer;text-transform:capitalize;background:transparent;color:#33334a;}
+.tab.active{background:#1a1a38;color:#d4af37;}
+.stat-wrap{margin-bottom:10px;}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;}
+.stat-lbl{font-size:10px;color:#5a5a8a;font-weight:700;text-transform:uppercase;letter-spacing:.07em;}
+.stat-val{font-size:13px;font-weight:700;min-width:40px;text-align:right;}
+.stat-track{height:26px;background:#0d0d1a;border:1px solid #1e1e36;border-radius:5px;position:relative;cursor:pointer;overflow:hidden;touch-action:manipulation;}
+.stat-fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;opacity:.8;}
+.act-hdr{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:4px 0;}
+.act-name{font-size:11px;color:#5a5a8a;font-weight:700;text-transform:uppercase;letter-spacing:.07em;}
+.act-val{font-size:12px;color:#b0b0d0;margin-left:8px;}
+.chevron{color:#33334a;font-size:14px;}
+.act-body{margin-top:10px;}
+.msg{padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:8px;}
+.msg-ok{background:rgba(50,120,50,.15);border:1px solid #2a5a2a;color:#80c880;}
+.msg-err{background:#1a0808;border:1px solid #5a1010;color:#e07070;}
+.msg-info{background:rgba(100,160,220,.1);border:1px solid #1e4a7a;color:#70a8d0;}
+.id-box{display:flex;align-items:center;background:#0d0d1a;border:1px solid #252540;border-radius:5px;overflow:hidden;}
+.id-pfx{padding:6px 8px;color:#d4af37;font-weight:800;font-size:13px;border-right:1px solid #252540;background:#0a0a18;flex-shrink:0;}
+.id-box input{border:none;background:transparent;flex:1;}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #33334a;border-top-color:#d4af37;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-left:6px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div id="hdr-title">
+    <div class="t1">KINDRED WARS</div>
+    <div class="t2">CHARACTER EDITOR</div>
+  </div>
+  <button class="btn btn-green btn-sm" id="btn-save" onclick="saveChar()" style="margin:0;display:none">Save ↑</button>
+</div>
+
+<div id="content">
+  <!-- Selector -->
+  <div class="card" id="selector">
+    <div class="sec">Select Character</div>
+    <div class="g2" style="margin-bottom:10px">
+      <div>
+        <label class="lbl">Tier</label>
+        <select id="sel-tier" onchange="updatePrefix()">
+          <option value="H">Hero</option>
+          <option value="L">Lieutenant</option>
+          <option value="M">Minion</option>
+        </select>
+      </div>
+      <div>
+        <label class="lbl">ID Number</label>
+        <div class="id-box">
+          <span class="id-pfx" id="id-pfx">H</span>
+          <input type="number" id="sel-num" min="1" max="200" placeholder="001" style="padding:6px 8px;font-size:13px;outline:none;color:#e0e0f0;">
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-blue" onclick="loadChar()">Load Character</button>
+    <div id="load-msg"></div>
+    <div id="char-info" style="display:none;margin-top:10px;padding:10px;background:#0a0a18;border-radius:6px;">
+      <div style="font-size:15px;font-weight:700;color:#e0e0f0" id="char-name"></div>
+      <div style="font-size:11px;color:#5a5a8a;margin-top:2px" id="char-sub"></div>
+    </div>
+  </div>
+
+  <!-- Editor (hidden until loaded) -->
+  <div id="editor" style="display:none">
+    <div class="tabs" id="tabs">
+      <button class="tab active" onclick="switchTab('stats',this)">Stats</button>
+      <button class="tab" onclick="switchTab('synergies',this)">Synergies</button>
+      <button class="tab" onclick="switchTab('actions',this)">Actions</button>
+    </div>
+
+    <!-- STATS TAB -->
+    <div id="tab-stats">
+      <div class="card" id="stat-bars"></div>
+    </div>
+
+    <!-- SYNERGIES TAB -->
+    <div id="tab-synergies" style="display:none">
+      <div class="card" id="syn-content"></div>
+    </div>
+
+    <!-- ACTIONS TAB -->
+    <div id="tab-actions" style="display:none">
+      <div id="actions-content"></div>
+    </div>
+
+    <div id="save-msg"></div>
+    <button class="btn btn-green" onclick="saveChar()">Save to Google Sheet ↑</button>
+  </div>
+</div>
+
+<script>
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbyAhYgAxzgud0AL0IGSfXDzFiuAPyGwW6JCjoRY7uVQZXkC2O2iOR7Wz7TXQstu8rAWtw/exec';
+
+const TYPES = ['','Alien','Arcane','Arthropod','Beast','Blight','Blood','Dragon','Dwarf','Earth','Elf','Evil','Fey','Flying','Giant','Goblin','God','Holy','Human','Metal','Mutant','Orc','Plant','Primordial','Psychic','Reptile','Sea','Smallkin','Tech','Undead','Void'];
+const SYN_STATS = ['','attack','defense','special attack','special defense','regen','speed','dodge','health','crit','critb'];
+function normSynStat(v){ return v ? String(v).toLowerCase().trim() : ''; }
+const DMG_TYPES = ['Normal','Special','Hybrid','None'];
+const AOE_PATTERNS = ["Single", "Double Tap", "Slash", "Lunging Strike", "Behind", "Side Swipes", "Cross", "Radius", "Leaping Smash", "Ring", "Expanding Ring", "Leaping Spin", "Orbit", "Aftershock", "Pulsing Ring", "Snipe", "Pulsing Line", "Boomerang", "Pierce", "Skip", "Cone", "Hollow_Cone", "Growing Arc", "Wall", "Pulsing Wall", "Rapid Fire", "Multi Select", "Chain", "Spiral", "Spiral_In", "Swap", "Dash", "Command"];
+const MOVE_TYPES = ['None','Dash','Teleport','Leap','Push','Pull','Swap','Charge-through'];
+const MOVE_TARGETS = ['','Self','Ally','Enemy','Any'];
+const EFF_TYPES = ["", "Atk+", "SpcAtk+", "Def+", "SpcDef+", "Speed+", "Crit+", "Dodge+", "Atk-", "SpcAtk-", "Def-", "SpcDef-", "Speed-", "Crit-", "Dodge-", "Warcry", "ArcaneCry", "Bulwark", "Ward", "Tailwind", "Perception", "Shroud", "Stun", "Root", "Shield", "Burn", "Poison", "Bleed", "Regen+", "Heal", "Soul Siphon", "Bloodlust", "Rage", "Resolve", "Endurance", "Silence", "Curse", "Lifesteal", "Cleanse", "Immunity", "Protector", "Thorns", "Mark", "Maniac", "Vengeance"];
+const TRIGGERS = ['Always','On_Crit','On_Kill','Chance'];
+const EFF_TARGETS = ['Enemy','Self','Allies','All'];
+const WEAKEN_STATS = ['','Attack','Defense','Special Attack','Special Defense','Speed','Dodge','Crit Chance'];
+const TRAP_TICKS = ['','One_shot','Continuous'];
+
+const STAT_COLORS = {Health:'#4a9a6a',Regen:'#5a8a5a',Attack:'#c04040',Defense:'#4060b0','Special Attack':'#9040b0','Special Defense':'#406090',Speed:'#b08030',Dodge:'#708040','Crit Chance':'#c06030','Crit Bonus':'#a05030'};
+const STAT_RANGES = {Health:[0,900],Regen:[0,45],Attack:[0,200],Defense:[0,200],'Special Attack':[0,200],'Special Defense':[0,200],Speed:[0,100],Dodge:[0,25],'Crit Chance':[0,35],'Crit Bonus':[0.5,3]};
+const STAT_STEPS = {Health:5,Regen:0.5,Attack:1,Defense:1,'Special Attack':1,'Special Defense':1,Speed:1,Dodge:1,'Crit Chance':1,'Crit Bonus':0.05};
+const STAT_COLS = {Health:13,Regen:14,Attack:15,Defense:16,'Special Attack':17,'Special Defense':18,Speed:19,Dodge:20,'Crit Chance':21,'Crit Bonus':22};
+
+const ACTION_SLOTS = [
+  {key:'std', label:'Standard Attack', nameCol:45},
+  {key:'u1', label:'Unique 1', nameCol:99},
+  {key:'u2', label:'Unique 2', nameCol:117},
+  {key:'u3', label:'Unique 3', nameCol:135},
+  {key:'u4', label:'Unique 4', nameCol:153},
+  {key:'u5', label:'Unique 5', nameCol:171},
+  {key:'u6', label:'Unique 6', nameCol:189},
+];
+// Action block offsets (relative to nameCol):
+// 0=Name,1=DmgType,2=DmgMod,3=AoePat,4=AoeSize,5=AoeRange
+// 6=E1Type,7=E2Type,8=E1Mag,9=E1Dur,10=E2Mag,11=E2Dur
+// 12=TrapTick,13=EnergyCost,14=Cooldown
+
+const A = {
+  NAME:0, DMGTYPE:1, DMGMOD:2, AOEPATTERN:3, AOESIZE:4, AOERANGE:5,
+  E1TYPE:6, E2TYPE:7, E1MAG:8, E1DUR:9, E2MAG:10, E2DUR:11,
+  TRAPTICK:12, ENERGYCOST:13, COOLDOWN:14
+};
+
+let charData = null; // raw row array from Apps Script
+let rowIndex = -1;
+let currentId = '';
+let actionOpen = {};
+
+// ── HELPERS ─────────────────────────────────────────────────
+function updatePrefix(){
+  document.getElementById('id-pfx').textContent = document.getElementById('sel-tier').value;
+}
+
+function msg(elId, text, type='info'){
+  const el = document.getElementById(elId);
+  el.className = 'msg msg-'+type;
+  el.textContent = text;
+  el.style.display = text ? '' : 'none';
+}
+
+function fmt(v, step){
+  if(v===null||v===undefined||v==='') return '';
+  const n = parseFloat(v);
+  if(isNaN(n)) return '';
+  if(step<0.1) return n.toFixed(2);
+  if(step<1) return n.toFixed(1);
+  return Math.round(n).toString();
+}
+
+function mkSel(options, val){
+  const s = document.createElement('select');
+  const valStr = String(val==null?'':val);
+  // If value not in options list, add it at top so it displays correctly
+  const optVals = options.map(o=>String(typeof o==='object'?o.value:o));
+  if(valStr && !optVals.includes(valStr)){
+    const opt=document.createElement('option');
+    opt.value=valStr; opt.textContent=valStr+' (custom)'; opt.selected=true;
+    s.appendChild(opt);
+  }
+  options.forEach(o=>{
+    const opt = document.createElement('option');
+    const ov = typeof o==='object'?o.value:o;
+    const ol = typeof o==='object'?o.label:String(o==null?'':o);
+    opt.value=ov; opt.textContent=ol;
+    if(String(ov)===valStr) opt.selected=true;
+    s.appendChild(opt);
+  });
+  return s;
+}
+
+function fieldWrap(label, el, style){
+  const d = document.createElement('div');
+  if(style) Object.assign(d.style, style);
+  const l = document.createElement('label');
+  l.className='lbl'; l.textContent=label;
+  d.appendChild(l); d.appendChild(el);
+  return d;
+}
+
+function numInput(val, step){
+  const i = document.createElement('input');
+  i.type='number'; i.step=step||1;
+  i.value=(val==null||val==='')?'':parseFloat(val)||0;
+  Object.assign(i.style,{background:'#0d0d1a',border:'1px solid #252540',borderRadius:'5px',color:'#e0e0f0',padding:'6px 8px',fontSize:'13px',outline:'none',width:'100%'});
+  return i;
+}
+
+// ── LOAD ─────────────────────────────────────────────────────
+async function apsFetch(url) {
+  // Apps Script requires following redirects
+  const res = await fetch(url, {
+    method: 'GET',
+    redirect: 'follow',
+    credentials: 'omit',
+  });
+  const text = await res.text();
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1) throw new Error('No JSON. Got: ' + text.slice(0,300));
+  return JSON.parse(text.slice(start, end+1));
+}
+
+async function loadChar(){
+  const tier = document.getElementById('sel-tier').value;
+  const num = document.getElementById('sel-num').value.trim();
+  if(!num){ msg('load-msg','Enter an ID number','err'); return; }
+  const id = tier + String(num).padStart(3,'0');
+  msg('load-msg','Loading '+id+'…','info');
+  document.getElementById('load-msg').innerHTML += '<span class="spinner"></span>';
+  try {
+    const url = APPS_URL + '?action=getCharacter&id=' + encodeURIComponent(id);
+    const data = await apsFetch(url);
+    if(data.error){ msg('load-msg', data.error, 'err'); return; }
+    charData = data.row;
+    rowIndex = data.rowIndex;
+    currentId = id;
+    document.getElementById('char-name').textContent = charData[1]||'Unnamed';
+    document.getElementById('char-sub').textContent = (charData[4]||'')+'  ·  '+(charData[12]||'')+' / '+(charData[14]||'');
+    document.getElementById('char-info').style.display='';
+    document.getElementById('editor').style.display='';
+    document.getElementById('btn-save').style.display='';
+    msg('load-msg','','info');
+    // Normalize synergy stat values to lowercase
+    [25,29,33,37,43].forEach(i=>{if(charData[i])charData[i]=normSynStat(charData[i]);});
+    buildStats();
+    buildSynergies();
+    buildActions();
+  } catch(e) {
+    msg('load-msg','Load failed: '+e.message,'err');
+  }
+}
+
+// ── STATS ────────────────────────────────────────────────────
+function buildStats(){
+  const el = document.getElementById('stat-bars');
+  el.innerHTML = '<div class="sec">Stats — tap bar to set</div>';
+  Object.entries(STAT_COLS).forEach(([name, col])=>{
+    const v = parseFloat(charData[col])||0;
+    const [mn,mx] = STAT_RANGES[name]||[0,100];
+    const step = STAT_STEPS[name]||1;
+    const pct = Math.max(0,Math.min(1,(v-mn)/(mx-mn)));
+    const color = STAT_COLORS[name]||'#d4af37';
+
+    const wrap = document.createElement('div');
+    wrap.className='stat-wrap';
+
+    const row = document.createElement('div');
+    row.className='stat-row';
+    const lbl = document.createElement('span');
+    lbl.className='stat-lbl'; lbl.textContent=name;
+    const valEl = document.createElement('span');
+    valEl.className='stat-val'; valEl.style.color=color;
+    valEl.textContent=fmt(v,step);
+    row.appendChild(lbl); row.appendChild(valEl);
+    wrap.appendChild(row);
+
+    const track = document.createElement('div');
+    track.className='stat-bar-track stat-track';
+    const fill = document.createElement('div');
+    fill.className='stat-fill';
+    fill.style.cssText=`width:${pct*100}%;background:${color};`;
+    track.appendChild(fill);
+
+    function setVal(clientX){
+      const rect = track.getBoundingClientRect();
+      const p = Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+      let nv = mn+p*(mx-mn);
+      nv = Math.round(nv/step)*step;
+      nv = parseFloat(Math.max(mn,Math.min(mx,nv)).toFixed(4));
+      charData[col] = nv;
+      fill.style.width = (Math.max(0,Math.min(1,(nv-mn)/(mx-mn)))*100)+'%';
+      valEl.textContent = fmt(nv,step);
+    }
+    track.onclick=e=>setVal(e.clientX);
+    track.ontouchstart=e=>{e.preventDefault();setVal(e.touches[0].clientX);};
+    wrap.appendChild(track);
+    el.appendChild(wrap);
+  });
+}
+
+// ── SYNERGIES ────────────────────────────────────────────────
+function buildSynergies(){
+  const el = document.getElementById('syn-content');
+  el.innerHTML='<div class="sec">Synergies</div>';
+
+  const syns=[
+    {n:1,tc:23,rc:24,sc:25,mc:26},
+    {n:2,tc:27,rc:28,sc:29,mc:30},
+    {n:3,tc:31,rc:32,sc:33,mc:34},
+    {n:4,tc:35,rc:36,sc:37,mc:38},
+  ];
+
+  syns.forEach(({n,tc,rc,sc,mc})=>{
+    const d=document.createElement('div');
+    d.style.cssText='background:#0a0a18;border:1px solid #1a1a38;border-radius:7px;padding:10px;margin-bottom:10px;';
+    const title=document.createElement('div');
+    title.style.cssText='font-size:10px;color:#5a5a8a;text-transform:uppercase;font-weight:700;letter-spacing:.08em;margin-bottom:8px;';
+    title.textContent='Synergy '+n;
+    d.appendChild(title);
+
+    const grid=document.createElement('div');
+    grid.className='g2';
+
+    // Type
+    const tSel=mkSel(TYPES, charData[tc]);
+    tSel.onchange=()=>charData[tc]=tSel.value;
+    grid.appendChild(fieldWrap('Type',tSel));
+
+    // Range
+    const rInp=numInput(charData[rc],0.5);
+    rInp.onchange=()=>charData[rc]=parseFloat(rInp.value)||0;
+    grid.appendChild(fieldWrap('Range',rInp));
+
+    // Stat
+    const sSel=mkSel(SYN_STATS,charData[sc]);
+    sSel.onchange=()=>charData[sc]=sSel.value;
+    grid.appendChild(fieldWrap('Stat',sSel));
+
+    // Modifier
+    const mInp=numInput(charData[mc],0.25);
+    mInp.onchange=()=>charData[mc]=parseFloat(mInp.value)||0;
+    grid.appendChild(fieldWrap('Modifier',mInp));
+
+    d.appendChild(grid);
+    el.appendChild(d);
+  });
+
+  // Class synergy
+  const cd=document.createElement('div');
+  cd.style.cssText='background:#0a0a18;border:1px solid #2a3a2a;border-radius:7px;padding:10px;';
+  const ct=document.createElement('div');
+  ct.style.cssText='font-size:10px;color:#5a8a5a;text-transform:uppercase;font-weight:700;letter-spacing:.08em;margin-bottom:8px;';
+  ct.textContent='Class Synergy';
+  cd.appendChild(ct);
+  const cg=document.createElement('div');
+  cg.className='g2';
+
+  // Range
+  const crInp=numInput(charData[40],0.5);
+  crInp.onchange=()=>charData[40]=parseFloat(crInp.value)||0;
+  cg.appendChild(fieldWrap('Range',crInp));
+  // Qty
+  const cqInp=numInput(charData[41],1);
+  cqInp.onchange=()=>charData[41]=parseFloat(cqInp.value)||0;
+  cg.appendChild(fieldWrap('Qty Required',cqInp));
+  // CDR
+  const cdrInp=numInput(charData[42],0.5);
+  cdrInp.onchange=()=>charData[42]=parseFloat(cdrInp.value)||0;
+  cg.appendChild(fieldWrap('CDR',cdrInp));
+  // Stat
+  const csSel=mkSel(SYN_STATS,charData[43]);
+  csSel.onchange=()=>charData[43]=csSel.value;
+  cg.appendChild(fieldWrap('Stat',csSel));
+  // Modifier
+  const cmInp=numInput(charData[44],0.25);
+  cmInp.onchange=()=>charData[44]=parseFloat(cmInp.value)||0;
+  cg.appendChild(fieldWrap('Modifier',cmInp));
+
+  cd.appendChild(cg);
+  el.appendChild(cd);
+}
+
+// ── ACTIONS ──────────────────────────────────────────────────
+function buildActions(){
+  const el=document.getElementById('actions-content');
+  el.innerHTML='';
+
+  ACTION_SLOTS.forEach(({key,label,nameCol})=>{
+    const name=charData[nameCol]||'';
+    const card=document.createElement('div');
+    card.className='card';
+
+    const hdr=document.createElement('div');
+    hdr.className='act-hdr';
+    const hl=document.createElement('div');
+    hl.innerHTML='<span class="act-name">'+label+'</span><span class="act-val"> '+name+'</span>';
+    const chev=document.createElement('span');
+    chev.className='chevron'; chev.textContent=actionOpen[key]?'▲':'▼';
+    hdr.appendChild(hl); hdr.appendChild(chev);
+    hdr.onclick=()=>{
+      actionOpen[key]=!actionOpen[key];
+      chev.textContent=actionOpen[key]?'▲':'▼';
+      body.style.display=actionOpen[key]?'':'none';
+    };
+    card.appendChild(hdr);
+
+    const body=document.createElement('div');
+    body.className='act-body';
+    body.style.display=actionOpen[key]?'':'none';
+
+    const c=col=>nameCol+A[col];
+
+    // Name
+    const nameInp=document.createElement('input');
+    nameInp.type='text'; nameInp.value=charData[nameCol]||'';
+    Object.assign(nameInp.style,{background:'#0d0d1a',border:'1px solid #252540',borderRadius:'5px',
+      color:'#e0e0f0',padding:'6px 8px',fontSize:'13px',outline:'none',width:'100%'});
+    nameInp.oninput=()=>{charData[nameCol]=nameInp.value; hl.querySelector('.act-val').textContent=' '+nameInp.value;};
+    body.appendChild(fieldWrap('Name',nameInp,{marginBottom:'10px'}));
+
+    // Core stats card
+    const sc=document.createElement('div');
+    sc.style.cssText='background:#0a0a18;border:1px solid #1a1a38;border-radius:6px;padding:10px;margin-bottom:8px;';
+    sc.appendChild(Object.assign(document.createElement('div'),{className:'sec',textContent:'Damage & AoE'}));
+    const sg=document.createElement('div'); sg.className='g2';
+
+    // Dmg Type
+    const dtSel=mkSel(DMG_TYPES,charData[c('DMGTYPE')]);
+    dtSel.onchange=()=>charData[c('DMGTYPE')]=dtSel.value;
+    sg.appendChild(fieldWrap('Dmg Type',dtSel));
+
+    // Dmg Mod bar
+    sg.appendChild(buildNumBar('Dmg Modifier',charData[c('DMGMOD')],0,2.5,0.05,'#c04040',v=>charData[c('DMGMOD')]=v));
+
+    // AoE Pattern
+    const apSel=mkSel(AOE_PATTERNS,charData[c('AOEPATTERN')]);
+    apSel.onchange=()=>charData[c('AOEPATTERN')]=apSel.value;
+    sg.appendChild(fieldWrap('AoE Pattern',apSel));
+
+    // AoE Size bar
+    sg.appendChild(buildNumBar('AoE Size',charData[c('AOESIZE')],0,7,1,'#9040b0',v=>charData[c('AOESIZE')]=v));
+
+    // AoE Range bar
+    sg.appendChild(buildNumBar('AoE Range',charData[c('AOERANGE')],0,9,0.5,'#4060b0',v=>charData[c('AOERANGE')]=v));
+
+    // Energy Cost
+    const ecSel=mkSel([{value:1,label:'1 Energy'},{value:2,label:'2 Energy'}],parseInt(charData[c('ENERGYCOST')])||1);
+    ecSel.onchange=()=>charData[c('ENERGYCOST')]=parseInt(ecSel.value);
+    sg.appendChild(fieldWrap('Energy Cost',ecSel));
+
+    // Cooldown
+    sg.appendChild(buildNumBar('Cooldown (rounds)',charData[c('COOLDOWN')],0,10,1,'#b08030',v=>charData[c('COOLDOWN')]=v));
+
+    // Trap Tick
+    const ttSel=mkSel(['','One_shot','Continuous'],charData[c('TRAPTICK')]);
+    ttSel.onchange=()=>charData[c('TRAPTICK')]=ttSel.value;
+    sg.appendChild(fieldWrap('Trap Tick',ttSel));
+
+    sc.appendChild(sg);
+    body.appendChild(sc);
+
+    // Effects
+    const ec2=document.createElement('div');
+    ec2.style.cssText='background:#0a0a18;border:1px solid #1a1a38;border-radius:6px;padding:10px;';
+    ec2.appendChild(Object.assign(document.createElement('div'),{className:'sec',textContent:'Effects'}));
+    const eg=document.createElement('div'); eg.className='g2';
+
+    // Effect 1
+    const e1t=mkSel(EFF_TYPES,charData[c('E1TYPE')]);
+    e1t.onchange=()=>charData[c('E1TYPE')]=e1t.value;
+    const e1tw=fieldWrap('Effect 1 Type',e1t); e1tw.style.gridColumn='1/-1';
+    eg.appendChild(e1tw);
+    eg.appendChild(buildNumBar('E1 Magnitude',charData[c('E1MAG')],-50,150,1,'#c06030',v=>charData[c('E1MAG')]=v));
+    eg.appendChild(buildNumBar('E1 Duration',charData[c('E1DUR')],0,10,1,'#5a5a8a',v=>charData[c('E1DUR')]=v));
+
+    // Effect 2
+    const e2t=mkSel(EFF_TYPES,charData[c('E2TYPE')]);
+    e2t.onchange=()=>charData[c('E2TYPE')]=e2t.value;
+    const e2tw=fieldWrap('Effect 2 Type',e2t); e2tw.style.gridColumn='1/-1';
+    eg.appendChild(e2tw);
+    eg.appendChild(buildNumBar('E2 Magnitude',charData[c('E2MAG')],-50,150,1,'#9040b0',v=>charData[c('E2MAG')]=v));
+    eg.appendChild(buildNumBar('E2 Duration',charData[c('E2DUR')],0,10,1,'#5a5a8a',v=>charData[c('E2DUR')]=v));
+
+    ec2.appendChild(eg);
+    body.appendChild(ec2);
+
+    card.appendChild(body);
+    el.appendChild(card);
+  });
+}
+
+function buildNumBar(label,val,mn,mx,step,color,onChange){
+  const v=parseFloat(val)||mn;
+  const pct=Math.max(0,Math.min(1,(v-mn)/(mx-mn)));
+  const wrap=document.createElement('div');
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;';
+  const lbl=document.createElement('label'); lbl.className='lbl'; lbl.textContent=label;
+  const valEl=document.createElement('span');
+  valEl.style.cssText=`font-size:12px;color:${color};font-weight:700;`;
+  valEl.textContent=step<0.1?v.toFixed(2):step<1?v.toFixed(1):Math.round(v).toString();
+  row.appendChild(lbl); row.appendChild(valEl);
+  wrap.appendChild(row);
+  const track=document.createElement('div'); track.className='stat-track';
+  const fill=document.createElement('div'); fill.className='stat-fill';
+  fill.style.cssText=`width:${pct*100}%;background:${color};`;
+  track.appendChild(fill);
+  function setV(cx){
+    const rect=track.getBoundingClientRect();
+    const p=Math.max(0,Math.min(1,(cx-rect.left)/rect.width));
+    let nv=mn+p*(mx-mn); nv=Math.round(nv/step)*step;
+    nv=parseFloat(Math.max(mn,Math.min(mx,nv)).toFixed(4));
+    onChange(nv); fill.style.width=(Math.max(0,Math.min(1,(nv-mn)/(mx-mn)))*100)+'%';
+    valEl.textContent=step<0.1?nv.toFixed(2):step<1?nv.toFixed(1):Math.round(nv).toString();
+  }
+  track.onclick=e=>setV(e.clientX);
+  track.ontouchstart=e=>{e.preventDefault();setV(e.touches[0].clientX);};
+  wrap.appendChild(track);
+  return wrap;
+}
+
+// ── TABS ─────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['stats','synergies','actions'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===name?'':'none';
+  });
+}
+
+// ── SAVE ─────────────────────────────────────────────────────
+async function saveChar(){
+  if(!charData){ alert('No character loaded.'); return; }
+  msg('save-msg','Saving…','info');
+  try {
+    const payload = encodeURIComponent(JSON.stringify({rowIndex, row:charData}));
+    const url = APPS_URL + '?action=updateRow&data=' + payload;
+    const data = await apsFetch(url);
+    if(data.error) msg('save-msg','Error: '+data.error,'err');
+    else msg('save-msg','Saved ✓','ok');
+    setTimeout(()=>msg('save-msg','','info'),3000);
+  } catch(e) {
+    msg('save-msg','Save failed: '+e.message,'err');
+  }
+}
+
+updatePrefix();
+</script>
+<div id="jsonp-container" style="display:none"></div>
+</body>
+</html>
