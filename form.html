@@ -121,6 +121,11 @@ select{cursor:pointer;}
 </div>
 
 <script>
+const SHEET_ID = '1uBPHC0CiK1yS9Zi7rKgxKiK5LRSu5kEDwTr1_97Vpe0';
+const API_KEY = 'AIzaSyCOjiIMACNOVR49OMUlsxm1aMxViNZpeok';
+const SHEET_NAME = 'Characters';
+const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
+// Apps Script still used for writes (Sheets API requires OAuth for writes)
 const APPS_URL = 'https://script.google.com/macros/s/AKfycbyAhYgAxzgud0AL0IGSfXDzFiuAPyGwW6JCjoRY7uVQZXkC2O2iOR7Wz7TXQstu8rAWtw/exec';
 
 const TYPES = ['','Alien','Arcane','Arthropod','Beast','Blight','Blood','Dragon','Dwarf','Earth','Elf','Evil','Fey','Flying','Giant','Goblin','God','Holy','Human','Metal','Mutant','Orc','Plant','Primordial','Psychic','Reptile','Sea','Smallkin','Tech','Undead','Void'];
@@ -231,22 +236,37 @@ function numInput(val, step){
 }
 
 // ── LOAD ─────────────────────────────────────────────────────
+// Sheets API read (fast - no cold start)
+async function sheetsGet(range) {
+  const url = SHEETS_BASE + '/' + SHEET_ID + '/values/' + 
+    encodeURIComponent(SHEET_NAME + '!' + range) + 
+    '?key=' + API_KEY;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Sheets API error: ' + res.status);
+  const data = await res.json();
+  return data.values || [];
+}
+
+// Get entire sheet at once (fast since it's one HTTP call)
+async function sheetsGetAll() {
+  const url = SHEETS_BASE + '/' + SHEET_ID + '/values/' + 
+    encodeURIComponent(SHEET_NAME) + 
+    '?key=' + API_KEY;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Sheets API error: ' + res.status);
+  const data = await res.json();
+  return data.values || [];
+}
+
+// Apps Script still used for writes
 async function apsFetch(url) {
-  // Try direct fetch first, fall back to no-cors JSONP approach
   try {
-    const res = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      credentials: 'omit',
-      mode: 'cors',
-    });
+    const res = await fetch(url, {method:'GET', redirect:'follow', credentials:'omit', mode:'cors'});
     const text = await res.text();
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start === -1) throw new Error('No JSON in response');
+    const start = text.indexOf('{'); const end = text.lastIndexOf('}');
+    if(start === -1) throw new Error('No JSON in response');
     return JSON.parse(text.slice(start, end+1));
   } catch(e) {
-    // Fallback: JSONP for mobile Safari
     return new Promise((resolve, reject) => {
       const cbName = '_cb' + Date.now();
       const timeout = setTimeout(() => {
@@ -264,17 +284,13 @@ async function apsFetch(url) {
       };
       const s = document.createElement('script');
       s.id = '_jsonp_' + cbName;
-      s.onerror = () => {
-        clearTimeout(timeout);
-        delete window[cbName];
-        s.remove();
-        reject(new Error('Script load failed'));
-      };
+      s.onerror = () => { clearTimeout(timeout); delete window[cbName]; s.remove(); reject(new Error('Script load failed')); };
       s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
       document.body.appendChild(s);
     });
   }
 }
+
 
 function updateCacheStatus(){
   const statusEl = document.getElementById('preload-status');
@@ -285,44 +301,42 @@ function updateCacheStatus(){
     statusEl.style.color = '#80c880';
     setTimeout(()=>{ statusEl.style.display='none'; }, 2000);
   } else {
-    statusEl.textContent = '↓ Caching ' + count + ' characters…';
+    statusEl.textContent = '↓ ' + count + ' cached…';
     statusEl.style.color = '#70a8d0';
     statusEl.style.display = '';
   }
 }
 
-async function loadBatch(){
-  if(batchDone || rosterLoading) return;
-  rosterLoading = true;
+async function preloadRoster(){
+  // Load all rows at once via Sheets API - fast single request
+  const statusEl = document.getElementById('preload-status');
+  if(statusEl){ statusEl.textContent = 'Loading roster…'; statusEl.style.display=''; statusEl.style.color='#70a8d0'; }
   try {
-    const url = APPS_URL + '?action=getBatch&startRow=' + batchNextStart + '&batchSize=20';
-    const data = await apsFetch(url);
-    if(data.rows){
-      data.rows.forEach(r => {
-        const id = String(r.row[0]||'').trim();
-        if(id) rosterCache[id] = r;
-      });
-      batchNextStart = data.nextStart || batchNextStart + 20;
-      batchDone = data.done || false;
-      updateCacheStatus();
+    const values = await sheetsGetAll();
+    if(values && values.length > 1){
+      rosterCache = {};
+      for(let i = 1; i < values.length; i++){
+        const row = values[i];
+        // Pad row to consistent length
+        while(row.length < 250) row.push('');
+        const id = String(row[0]||'').trim();
+        if(id) rosterCache[id] = { rowIndex: i+1, row };
+      }
+      batchDone = true;
+      if(statusEl){
+        statusEl.textContent = '✓ ' + Object.keys(rosterCache).length + ' characters ready';
+        statusEl.style.color = '#80c880';
+        setTimeout(()=>{ statusEl.style.display='none'; }, 2000);
+      }
     }
   } catch(e) {
-    // Silent fail - cache just won't be complete
+    if(statusEl){ statusEl.textContent = 'Roster load failed — loading individually'; statusEl.style.color='#e07070'; }
   }
-  rosterLoading = false;
-  // Continue loading next batch with a small delay
-  if(!batchDone) setTimeout(loadBatch, 800);
 }
 
-async function preloadRoster(){
-  // Batch loading starts after first character is loaded
-  // See startBackgroundLoad() called from loadChar
-}
+async function loadBatch(){ /* no-op - using full preload now */ }
+function startBackgroundLoad(){ /* no-op - using full preload now */ }
 
-function startBackgroundLoad(){
-  if(batchDone || rosterLoading) return;
-  setTimeout(loadBatch, 300);
-}
 
 async function loadChar(){
   const tier = document.getElementById('sel-tier').value;
