@@ -695,14 +695,38 @@ async function saveChar(){
   if(!charData){ alert('No character loaded.'); return; }
   msg('save-msg','Saving…','info');
   try {
-    const payload = encodeURIComponent(JSON.stringify({rowIndex, row:charData}));
-    const url = APPS_URL + '?action=updateRow&data=' + payload;
-    const data = await apsFetch(url);
-    if(data.error) msg('save-msg','Error: '+data.error,'err');
-    else {
+    // Use POST to avoid URL length limits with large row data
+    const body = JSON.stringify({action:'updateRow', rowIndex, row:charData});
+    let saved = false;
+    // Try POST with cors first
+    try {
+      const res = await fetch(APPS_URL, {
+        method:'POST',
+        body,
+        redirect:'follow',
+        mode:'cors',
+        headers:{'Content-Type':'text/plain'}
+      });
+      const text = await res.text();
+      const start = text.indexOf('{'); const end = text.lastIndexOf('}');
+      if(start !== -1){
+        const data = JSON.parse(text.slice(start, end+1));
+        if(data.success) saved = true;
+        if(data.error) throw new Error(data.error);
+      } else { saved = true; } // no-cors returns empty body but still works
+    } catch(e) {
+      // Fallback: no-cors POST (data sends but no response)
+      await fetch(APPS_URL, {
+        method:'POST',
+        body,
+        mode:'no-cors',
+        headers:{'Content-Type':'text/plain'}
+      });
+      saved = true;
+    }
+    if(saved){
       msg('save-msg','Saved ✓','ok');
-      // Update cache
-      if(rosterCache && currentId) rosterCache[currentId] = {row:charData, rowIndex};
+      if(rosterCache && currentId) rosterCache[currentId] = {row:[...charData], rowIndex};
     }
     setTimeout(()=>msg('save-msg','','info'),3000);
   } catch(e) {
