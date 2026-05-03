@@ -315,8 +315,13 @@ async function loadBatch(){
 }
 
 async function preloadRoster(){
-  // Start background batch loading
-  setTimeout(loadBatch, 1500);
+  // Batch loading starts after first character is loaded
+  // See startBackgroundLoad() called from loadChar
+}
+
+function startBackgroundLoad(){
+  if(batchDone || rosterLoading) return;
+  setTimeout(loadBatch, 300);
 }
 
 async function loadChar(){
@@ -354,6 +359,7 @@ async function loadChar(){
     buildStats();
     buildSynergies();
     buildActions();
+    startBackgroundLoad();
   } catch(e) {
     msg('load-msg','Load failed: '+e.message,'err');
   }
@@ -507,22 +513,54 @@ function buildSynergies(){
 
 // ── ACTIONS ──────────────────────────────────────────────────
 function buildActions(){
-  const el=document.getElementById('actions-content');
-  el.innerHTML='';
+  const el = document.getElementById('actions-content');
+  el.innerHTML = '<p style="font-size:10px;color:#33334a;margin-bottom:8px;">Scroll right to see all actions →</p>';
+
+  const FIELDS = [
+    {label:'Name',       key:'NAME',      type:'text'},
+    {label:'Dmg Type',   key:'DMGTYPE',   type:'sel',  opts:()=>DMG_TYPES},
+    {label:'Dmg Mod',    key:'DMGMOD',    type:'num',  step:0.05, min:0,   max:2.5},
+    {label:'AoE Pattern',key:'AOEPATTERN',type:'sel',  opts:()=>AOE_PATTERNS},
+    {label:'AoE Size',   key:'AOESIZE',   type:'num',  step:1,    min:0,   max:10},
+    {label:'AoE Range',  key:'AOERANGE',  type:'num',  step:0.5,  min:0,   max:10},
+    {label:'Energy',     key:'ENERGYCOST',type:'sel',  opts:()=>[{value:1,label:'1'},{value:2,label:'2'}]},
+    {label:'Cooldown',   key:'COOLDOWN',  type:'num',  step:1,    min:0,   max:10},
+    {label:'Trap Tick',  key:'TRAPTICK',  type:'sel',  opts:()=>['','One_shot','Continuous']},
+    {label:'E1 Type',    key:'E1TYPE',    type:'sel',  opts:()=>EFF_TYPES},
+    {label:'E1 Mag',     key:'E1MAG',     type:'num',  step:1,    min:-50, max:150},
+    {label:'E1 Dur',     key:'E1DUR',     type:'num',  step:1,    min:0,   max:10},
+    {label:'E2 Type',    key:'E2TYPE',    type:'sel',  opts:()=>EFF_TYPES},
+    {label:'E2 Mag',     key:'E2MAG',     type:'num',  step:1,    min:-50, max:150},
+    {label:'E2 Dur',     key:'E2DUR',     type:'num',  step:1,    min:0,   max:10},
+  ];
 
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'overflow-x:auto;';
+  wrapper.style.cssText = 'overflow-x:auto;-webkit-overflow-scrolling:touch;';
 
   const table = document.createElement('table');
-  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;min-width:700px;';
+  // 1 label col + 7 action cols
+  const actionColWidth = 90;
+  const labelColWidth = 80;
+  const totalWidth = labelColWidth + actionColWidth * ACTION_SLOTS.length;
+  table.style.cssText = 'border-collapse:collapse;font-size:11px;width:' + totalWidth + 'px;';
 
-  // Header row
+  const cellStyle = 'padding:4px 3px;border-bottom:1px solid #1a1a38;border-right:1px solid #161630;vertical-align:middle;';
+  const labelStyle = 'padding:4px 6px;border-bottom:1px solid #1a1a38;background:#0a0a18;font-size:9px;color:#5a5a8a;font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;position:sticky;left:0;z-index:2;';
+  const inpStyle = 'background:#0c0c1e;border:1px solid #1e1e36;border-radius:3px;color:#e0e0f0;padding:3px 4px;font-size:11px;outline:none;width:100%;box-sizing:border-box;';
+  const selStyle = inpStyle + 'cursor:pointer;';
+
+  // Header row - action names
   const thead = document.createElement('thead');
   const hrow = document.createElement('tr');
-  ['Action','Name','Dmg Type','Dmg Mod','AoE Pattern','AoE Size','AoE Range','Energy','Cooldown','Trap Tick','E1 Type','E1 Mag','E1 Dur','E2 Type','E2 Mag','E2 Dur'].forEach(h=>{
+  // Sticky top-left corner
+  const cornerTh = document.createElement('th');
+  cornerTh.style.cssText = labelStyle + 'background:#080810;position:sticky;left:0;top:0;z-index:3;min-width:' + labelColWidth + 'px;';
+  cornerTh.textContent = 'Field';
+  hrow.appendChild(cornerTh);
+  ACTION_SLOTS.forEach(({label, nameCol}) => {
     const th = document.createElement('th');
-    th.textContent = h;
-    th.style.cssText = 'padding:6px 4px;background:#0a0a18;color:#5a5a8a;font-size:9px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1a1a38;white-space:nowrap;text-align:left;position:sticky;top:0;z-index:1;';
+    th.style.cssText = 'padding:4px 3px;background:#0a0a18;color:#d4af37;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #d4af3744;border-right:1px solid #161630;white-space:nowrap;min-width:' + actionColWidth + 'px;max-width:' + actionColWidth + 'px;position:sticky;top:0;z-index:1;';
+    th.textContent = label;
     hrow.appendChild(th);
   });
   thead.appendChild(hrow);
@@ -530,125 +568,49 @@ function buildActions(){
 
   const tbody = document.createElement('tbody');
 
-  ACTION_SLOTS.forEach(({key,label,nameCol},rowIdx)=>{
+  // One row per field
+  FIELDS.forEach((field, fi) => {
     const tr = document.createElement('tr');
-    tr.style.cssText = rowIdx%2===0 ? 'background:#111122;' : 'background:#0d0d1a;';
-    const c = col => nameCol + A[col];
+    tr.style.background = fi % 2 === 0 ? '#111122' : '#0d0d1a';
 
-    const tdStyle = 'padding:4px;border-bottom:1px solid #1a1a38;vertical-align:middle;';
-    const inputStyle = 'background:#0a0a18;border:1px solid #1e1e36;border-radius:4px;color:#e0e0f0;padding:4px 5px;font-size:11px;outline:none;width:100%;';
-    const selStyle = inputStyle + 'cursor:pointer;';
-
-    // Label
+    // Sticky label cell
     const tdLbl = document.createElement('td');
-    tdLbl.style.cssText = tdStyle + 'white-space:nowrap;';
-    tdLbl.innerHTML = '<span style="font-size:9px;color:#5a5a8a;font-weight:700;text-transform:uppercase;letter-spacing:.06em">' + label + '</span>';
+    tdLbl.style.cssText = labelStyle + 'background:' + (fi%2===0?'#0e0e20':'#0b0b1a') + ';min-width:' + labelColWidth + 'px;';
+    tdLbl.textContent = field.label;
     tr.appendChild(tdLbl);
 
-    // Name
-    const tdName = document.createElement('td');
-    tdName.style.cssText = tdStyle + 'min-width:100px;';
-    const nameInp = document.createElement('input');
-    nameInp.type='text'; nameInp.value=String(charData[nameCol]||'');
-    nameInp.style.cssText = inputStyle;
-    nameInp.oninput=()=>charData[nameCol]=nameInp.value;
-    tdName.appendChild(nameInp); tr.appendChild(tdName);
+    // One cell per action
+    ACTION_SLOTS.forEach(({nameCol}) => {
+      const c = col => nameCol + A[col];
+      const td = document.createElement('td');
+      td.style.cssText = cellStyle + 'min-width:' + actionColWidth + 'px;max-width:' + actionColWidth + 'px;';
 
-    // Dmg Type
-    const tdDT = document.createElement('td'); tdDT.style.cssText=tdStyle+'min-width:80px;';
-    const dtSel = mkSel(DMG_TYPES, charData[c('DMGTYPE')]);
-    dtSel.style.cssText=selStyle; dtSel.onchange=()=>charData[c('DMGTYPE')]=dtSel.value;
-    tdDT.appendChild(dtSel); tr.appendChild(tdDT);
-
-    // Dmg Mod
-    const tdDM = document.createElement('td'); tdDM.style.cssText=tdStyle+'min-width:60px;';
-    const dmInp = document.createElement('input');
-    dmInp.type='number'; dmInp.step='0.05'; dmInp.min='0'; dmInp.max='2.5';
-    dmInp.value=parseFloat(charData[c('DMGMOD')])||1;
-    dmInp.style.cssText=inputStyle; dmInp.onchange=()=>charData[c('DMGMOD')]=parseFloat(dmInp.value);
-    tdDM.appendChild(dmInp); tr.appendChild(tdDM);
-
-    // AoE Pattern
-    const tdAP = document.createElement('td'); tdAP.style.cssText=tdStyle+'min-width:110px;';
-    const apSel = mkSel(AOE_PATTERNS, charData[c('AOEPATTERN')]);
-    apSel.style.cssText=selStyle; apSel.onchange=()=>charData[c('AOEPATTERN')]=apSel.value;
-    tdAP.appendChild(apSel); tr.appendChild(tdAP);
-
-    // AoE Size
-    const tdAS = document.createElement('td'); tdAS.style.cssText=tdStyle+'min-width:50px;';
-    const asInp = document.createElement('input');
-    asInp.type='number'; asInp.step='1'; asInp.min='0'; asInp.max='10';
-    asInp.value=parseInt(charData[c('AOESIZE')])||0;
-    asInp.style.cssText=inputStyle; asInp.onchange=()=>charData[c('AOESIZE')]=parseInt(asInp.value);
-    tdAS.appendChild(asInp); tr.appendChild(tdAS);
-
-    // AoE Range
-    const tdAR = document.createElement('td'); tdAR.style.cssText=tdStyle+'min-width:50px;';
-    const arInp = document.createElement('input');
-    arInp.type='number'; arInp.step='0.5'; arInp.min='0'; arInp.max='10';
-    arInp.value=parseFloat(charData[c('AOERANGE')])||0;
-    arInp.style.cssText=inputStyle; arInp.onchange=()=>charData[c('AOERANGE')]=parseFloat(arInp.value);
-    tdAR.appendChild(arInp); tr.appendChild(tdAR);
-
-    // Energy Cost
-    const tdEC = document.createElement('td'); tdEC.style.cssText=tdStyle+'min-width:60px;';
-    const ecSel = mkSel([{value:1,label:'1'},{value:2,label:'2'}], parseInt(charData[c('ENERGYCOST')])||1);
-    ecSel.style.cssText=selStyle; ecSel.onchange=()=>charData[c('ENERGYCOST')]=parseInt(ecSel.value);
-    tdEC.appendChild(ecSel); tr.appendChild(tdEC);
-
-    // Cooldown
-    const tdCD = document.createElement('td'); tdCD.style.cssText=tdStyle+'min-width:50px;';
-    const cdInp = document.createElement('input');
-    cdInp.type='number'; cdInp.step='1'; cdInp.min='0'; cdInp.max='10';
-    cdInp.value=parseInt(charData[c('COOLDOWN')])||0;
-    cdInp.style.cssText=inputStyle; cdInp.onchange=()=>charData[c('COOLDOWN')]=parseInt(cdInp.value);
-    tdCD.appendChild(cdInp); tr.appendChild(tdCD);
-
-    // Trap Tick
-    const tdTT = document.createElement('td'); tdTT.style.cssText=tdStyle+'min-width:80px;';
-    const ttSel = mkSel(['','One_shot','Continuous'], charData[c('TRAPTICK')]);
-    ttSel.style.cssText=selStyle; ttSel.onchange=()=>charData[c('TRAPTICK')]=ttSel.value;
-    tdTT.appendChild(ttSel); tr.appendChild(tdTT);
-
-    // E1 Type
-    const tdE1T = document.createElement('td'); tdE1T.style.cssText=tdStyle+'min-width:90px;';
-    const e1tSel = mkSel(EFF_TYPES, charData[c('E1TYPE')]);
-    e1tSel.style.cssText=selStyle; e1tSel.onchange=()=>charData[c('E1TYPE')]=e1tSel.value;
-    tdE1T.appendChild(e1tSel); tr.appendChild(tdE1T);
-
-    // E1 Mag
-    const tdE1M = document.createElement('td'); tdE1M.style.cssText=tdStyle+'min-width:50px;';
-    const e1mInp = document.createElement('input');
-    e1mInp.type='number'; e1mInp.step='1'; e1mInp.value=parseFloat(charData[c('E1MAG')])||0;
-    e1mInp.style.cssText=inputStyle; e1mInp.onchange=()=>charData[c('E1MAG')]=parseFloat(e1mInp.value);
-    tdE1M.appendChild(e1mInp); tr.appendChild(tdE1M);
-
-    // E1 Dur
-    const tdE1D = document.createElement('td'); tdE1D.style.cssText=tdStyle+'min-width:50px;';
-    const e1dInp = document.createElement('input');
-    e1dInp.type='number'; e1dInp.step='1'; e1dInp.min='0'; e1dInp.value=parseInt(charData[c('E1DUR')])||0;
-    e1dInp.style.cssText=inputStyle; e1dInp.onchange=()=>charData[c('E1DUR')]=parseInt(e1dInp.value);
-    tdE1D.appendChild(e1dInp); tr.appendChild(tdE1D);
-
-    // E2 Type
-    const tdE2T = document.createElement('td'); tdE2T.style.cssText=tdStyle+'min-width:90px;';
-    const e2tSel = mkSel(EFF_TYPES, charData[c('E2TYPE')]);
-    e2tSel.style.cssText=selStyle; e2tSel.onchange=()=>charData[c('E2TYPE')]=e2tSel.value;
-    tdE2T.appendChild(e2tSel); tr.appendChild(tdE2T);
-
-    // E2 Mag
-    const tdE2M = document.createElement('td'); tdE2M.style.cssText=tdStyle+'min-width:50px;';
-    const e2mInp = document.createElement('input');
-    e2mInp.type='number'; e2mInp.step='1'; e2mInp.value=parseFloat(charData[c('E2MAG')])||0;
-    e2mInp.style.cssText=inputStyle; e2mInp.onchange=()=>charData[c('E2MAG')]=parseFloat(e2mInp.value);
-    tdE2M.appendChild(e2mInp); tr.appendChild(tdE2M);
-
-    // E2 Dur
-    const tdE2D = document.createElement('td'); tdE2D.style.cssText=tdStyle+'min-width:50px;';
-    const e2dInp = document.createElement('input');
-    e2dInp.type='number'; e2dInp.step='1'; e2dInp.min='0'; e2dInp.value=parseInt(charData[c('E2DUR')])||0;
-    e2dInp.style.cssText=inputStyle; e2dInp.onchange=()=>charData[c('E2DUR')]=parseInt(e2dInp.value);
-    tdE2D.appendChild(e2dInp); tr.appendChild(tdE2D);
+      if(field.key === 'NAME') {
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.value = String(charData[nameCol] || '');
+        inp.style.cssText = inpStyle;
+        inp.oninput = () => charData[nameCol] = inp.value;
+        td.appendChild(inp);
+      } else if(field.type === 'sel') {
+        const sel = mkSel(field.opts(), charData[c(field.key)]);
+        sel.style.cssText = selStyle;
+        sel.onchange = () => charData[c(field.key)] = sel.value;
+        td.appendChild(sel);
+      } else {
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.step = field.step || 1;
+        if(field.min !== undefined) inp.min = field.min;
+        if(field.max !== undefined) inp.max = field.max;
+        const raw = charData[c(field.key)];
+        inp.value = raw !== '' && raw !== null && raw !== undefined ? parseFloat(raw) || 0 : 0;
+        inp.style.cssText = inpStyle;
+        inp.onchange = () => charData[c(field.key)] = parseFloat(inp.value);
+        td.appendChild(inp);
+      }
+      tr.appendChild(td);
+    });
 
     tbody.appendChild(tr);
   });
@@ -656,7 +618,6 @@ function buildActions(){
   table.appendChild(tbody);
   wrapper.appendChild(table);
   el.appendChild(wrapper);
-  el.insertAdjacentHTML('afterbegin','<p style="font-size:10px;color:#33334a;margin-bottom:8px;">← scroll horizontally to see all columns</p>');
 }
 
 
